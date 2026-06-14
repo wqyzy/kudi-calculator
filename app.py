@@ -13,7 +13,17 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-DB_PATH = os.environ.get('DATABASE_PATH', os.path.join(os.path.dirname(__file__), 'data.db'))
+# Determine writable database path
+_DEFAULT_DB = os.path.join(os.getcwd(), 'data.db')
+# Test if we can write to it
+try:
+    with open(_DEFAULT_DB, 'a'): pass
+    DB_PATH = _DEFAULT_DB
+except (IOError, OSError):
+    DB_PATH = os.path.join('/tmp', 'kudi_calculator.db')
+
+DB_PATH = os.environ.get('DATABASE_PATH', DB_PATH)
+print(f"[startup] DB_PATH = {DB_PATH}")
 
 
 def get_db():
@@ -146,6 +156,7 @@ def api_save(code):
 
 if __name__ == '__main__':
     init_db()
+    print("[startup] Database initialized successfully")
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_ENV') == 'development'
     app.run(host='0.0.0.0', port=port, debug=debug)
