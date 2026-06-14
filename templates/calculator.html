@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>☕ {{ code }} · 库迪咖啡财务计算器</title>
+<style>
+    :root {
+        --primary: #8B4513; --primary-light: #A0522D;
+        --bg: #1a1a2e; --card-bg: #16213e; --card-alt: #1c2a4a;
+        --text: #e0e0e0; --text-light: #a0a0b0;
+        --accent-green: #4CAF50; --accent-red: #f44336;
+        --accent-yellow: #ff9800; --accent-blue: #2196F3;
+        --border: #2a3a5a;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+        font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        background: var(--bg); color: var(--text); line-height: 1.6;
+        padding: 16px;
+    }
+    .container { max-width: 1500px; margin: 0 auto; }
+
+    /* Header */
+    .header {
+        background: linear-gradient(135deg, #4a1a00 0%, #8B4513 50%, #2a1a0a 100%);
+        padding: 20px 28px;
+        border-radius: 14px;
+        margin-bottom: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .header h1 { font-size: 22px; color: #fff; }
+    .header .share-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .share-code {
+        background: rgba(255,255,255,0.15);
+        padding: 8px 20px;
+        border-radius: 8px;
+        font-size: 20px;
+        font-weight: 700;
+        color: #fff;
+        letter-spacing: 4px;
+        font-family: monospace;
+        cursor: pointer;
+        user-select: all;
+    }
+    .save-status {
+        font-size: 12px;
+        color: #d4a06a;
+        padding: 4px 12px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 4px;
+    }
+    .save-status.saved { color: var(--accent-green); }
+    .save-status.error { color: var(--accent-red); }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
+    @media (max-width: 1024px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+
+    .card {
+        background: var(--card-bg); border: 1px solid var(--border);
+        border-radius: 12px; padding: 16px; margin-bottom: 12px;
+    }
+    .card-title {
+        font-size: 15px; font-weight: 600; color: #d4a06a;
+        margin-bottom: 12px; padding-bottom: 8px;
+        border-bottom: 1px solid var(--border);
+    }
+    .card-title .hint { font-size: 11px; color: #666; font-weight: 400; margin-left: 8px; }
+
+    .form-group { margin-bottom: 10px; }
+    .form-group label {
+        display: block; font-size: 12px; color: var(--text-light); margin-bottom: 3px;
+    }
+    .input-row { display: flex; align-items: center; gap: 6px; }
+    .input-row input { flex: 1; }
+    .input-row .unit { font-size: 12px; color: var(--text-light); min-width: 24px; }
+
+    input, select {
+        width: 100%; padding: 7px 10px;
+        background: #0d1b3a; border: 1px solid var(--border);
+        border-radius: 6px; color: #fff; font-size: 13px;
+        transition: border-color 0.2s;
+    }
+    input:focus { outline: none; border-color: var(--primary-light); }
+    input[type="number"] { -moz-appearance: textfield; }
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+    .result-card {
+        background: linear-gradient(135deg, #1a2a1a 0%, #16213e 100%);
+        border: 1px solid #2a4a2a; border-radius: 12px; padding: 20px; margin-bottom: 16px;
+    }
+    .result-number { font-size: 30px; font-weight: 700; }
+    .result-number.green { color: var(--accent-green); }
+    .result-number.red { color: var(--accent-red); }
+    .result-number.yellow { color: var(--accent-yellow); }
+    .result-number.blue { color: var(--accent-blue); }
+
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+    .stat-box {
+        background: rgba(255,255,255,0.03); border-radius: 8px; padding: 10px; text-align: center;
+    }
+    .stat-box .value { font-size: 20px; font-weight: 700; }
+    .stat-box .label { font-size: 11px; color: var(--text-light); margin-top: 3px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th {
+        background: #0d1b3a; color: var(--text-light);
+        padding: 6px 8px; text-align: right; font-weight: 500;
+        border-bottom: 2px solid var(--border);
+    }
+    th:first-child { text-align: left; }
+    td {
+        padding: 5px 8px; text-align: right;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    td:first-child { text-align: left; }
+    tr:hover td { background: rgba(255,255,255,0.03); }
+    tr.highlight-row td { background: rgba(76,175,80,0.1); font-weight: 600; }
+    td.positive { color: var(--accent-green); }
+    td.negative { color: var(--accent-red); }
+    .table-wrap { overflow-x: auto; margin: 0 -4px; }
+    .table-wrap table { min-width: 550px; }
+
+    .tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
+    .tab-btn {
+        padding: 6px 14px; background: #0d1b3a; border: 1px solid var(--border);
+        border-radius: 6px; color: var(--text-light); cursor: pointer;
+        font-size: 12px; transition: all 0.2s;
+    }
+    .tab-btn:hover { background: #1a2a5a; }
+    .tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary-light); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .tag {
+        display: inline-block; padding: 2px 8px; border-radius: 4px;
+        font-size: 11px; font-weight: 600;
+    }
+    .tag.green { background: rgba(76,175,80,0.2); color: var(--accent-green); }
+    .tag.yellow { background: rgba(255,152,0,0.2); color: var(--accent-yellow); }
+    .tag.red { background: rgba(244,67,54,0.2); color: var(--accent-red); }
+
+    .collapsible-body { display: none; padding-top: 8px; }
+    .collapsible-body.open { display: block; }
+    .collapsible-header { cursor: pointer; user-select: none; display: flex; justify-content: space-between; }
+
+    .section-divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+
+    .banner {
+        background: rgba(33,150,243,0.1);
+        border: 1px solid rgba(33,150,243,0.3);
+        border-radius: 10px;
+        padding: 12px 18px;
+        margin-bottom: 16px;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .banner .code-display {
+        font-family: monospace;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--accent-blue);
+        letter-spacing: 3px;
+        background: rgba(33,150,243,0.1);
+        padding: 4px 16px;
+        border-radius: 6px;
+    }
+    .btn-copy {
+        padding: 6px 16px;
+        background: var(--accent-blue);
+        border: none;
+        border-radius: 6px;
+        color: #fff;
+        font-size: 12px;
+        cursor: pointer;
+    }
+    .btn-copy:hover { opacity: 0.8; }
+
+    .field-tag {
+        display: inline-block;
+        font-size: 10px;
+        padding: 1px 6px;
+        border-radius: 3px;
+        margin-left: 4px;
+    }
+    .field-tag.me { background: rgba(76,175,80,0.2); color: var(--accent-green); }
+    .field-tag.other { background: rgba(33,150,243,0.2); color: var(--accent-blue); }
+    .field-tag.empty-tag { background: rgba(255,152,0,0.15); color: var(--accent-yellow); }
+
+    @media (max-width: 768px) {
+        body { padding: 10px; }
+        .header { padding: 14px; }
+        .header h1 { font-size: 18px; }
+        .share-code { font-size: 16px; padding: 6px 14px; }
+        .result-number { font-size: 24px; }
+    }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Header -->
+<div class="header">
+    <div>
+        <h1>☕ 库迪咖啡 · 财务计算器</h1>
+        <div style="font-size:12px;color:#d4a06a;margin-top:2px">{{ name }}</div>
+    </div>
+    <div class="share-info">
+        <span class="share-code" id="shareCode" title="点击复制分享码">{{ code }}</span>
+        <button class="btn-copy" onclick="copyCode()">📋 复制分享码</button>
+        <span class="save-status" id="saveStatus">✓ 已保存</span>
+    </div>
+</div>
+
+<!-- Collaboration Banner -->
+<div class="banner">
+    <span>🔗 分享码：<span class="code-display">{{ code }}</span></span>
+    <span style="color:var(--text-light);font-size:12px">
+        把分享码发给对方 → 对方打开首页输入即可加入协作
+    </span>
+    <span style="margin-left:auto;font-size:12px;color:var(--accent-green)" id="lastSaved"></span>
+</div>
+
+<!-- Summary Bar -->
+<div class="result-card" id="summaryBar">
+    <div class="stat-grid">
+        <div class="stat-box">
+            <div class="value" id="sBreakEven" style="color:var(--accent-yellow)">--</div>
+            <div class="label">☕ 盈亏平衡（杯/天）</div>
+        </div>
+        <div class="stat-box">
+            <div class="value" id="sTargetCups" style="color:var(--accent-blue)">--</div>
+            <div class="label">🎯 目标回本（杯/天）</div>
+        </div>
+        <div class="stat-box">
+            <div class="value" id="sMonthlyProfit" style="color:var(--accent-green)">--</div>
+            <div class="label">📈 月净利（目标杯量）</div>
+        </div>
+        <div class="stat-box">
+            <div class="value" id="sPayback" style="color:var(--accent-yellow)">--</div>
+            <div class="label">⏱ 回本周期</div>
+        </div>
+        <div class="stat-box">
+            <div class="value" id="sConversion" style="color:var(--accent-blue)">--</div>
+            <div class="label">🔄 需转化率</div>
+        </div>
+        <div class="stat-box">
+            <div class="value" id="sVerdict" style="font-size:18px">--</div>
+            <div class="label">📊 判断</div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Grid -->
+<div class="grid-2">
+    <!-- LEFT: Inputs -->
+    <div id="leftPanel">
+
+        <div class="card">
+            <div class="card-title collapsible-header" onclick="toggleCollapse(this)">
+                💰 初始投资 <span class="hint">谁了解设备、装修费用谁填</span>
+                <span class="icon">▼</span>
+            </div>
+            <div class="collapsible-body open">
+                <div class="grid-2" style="gap:6px">
+                    <div class="form-group">
+                        <label>设备费（元）</label>
+                        <input type="number" id="equipment" value="120000" step="1000" data-key="equipment">
+                    </div>
+                    <div class="form-group">
+                        <label>柜体广告费（元）</label>
+                        <input type="number" id="cabinetSign" value="30000" step="1000" data-key="cabinetSign">
+                    </div>
+                    <div class="form-group">
+                        <label>基础装修（元）</label>
+                        <input type="number" id="renovation" value="20000" step="1000" data-key="renovation">
+                    </div>
+                    <div class="form-group">
+                        <label>设计费（元）</label>
+                        <input type="number" id="designFee" value="2000" step="500" data-key="designFee">
+                    </div>
+                    <div class="form-group">
+                        <label>首批物料（元）</label>
+                        <input type="number" id="firstBatch" value="25000" step="1000" data-key="firstBatch">
+                    </div>
+                    <div class="form-group">
+                        <label>证照杂费（元）</label>
+                        <input type="number" id="licenseMisc" value="5000" step="1000" data-key="licenseMisc">
+                    </div>
+                    <div class="form-group">
+                        <label>履约保证金（可退，元）</label>
+                        <input type="number" id="deposit" value="50000" step="1000" data-key="deposit">
+                    </div>
+                    <div class="form-group">
+                        <label>流动资金（元）</label>
+                        <input type="number" id="workingCapital" value="30000" step="1000" data-key="workingCapital">
+                    </div>
+                </div>
+                <div style="margin-top:6px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;color:var(--text-light)">
+                    净投入(不可退): <strong id="iSunk" style="color:#fff">--</strong> 元 &nbsp;|&nbsp; 总需准备: <strong id="iTotal" style="color:#fff">--</strong> 元
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title collapsible-header" onclick="toggleCollapse(this)">
+                📆 月度固定成本 <span class="hint">租金、人工、水电</span>
+                <span class="icon">▼</span>
+            </div>
+            <div class="collapsible-body open">
+                <div class="grid-2" style="gap:6px">
+                    <div class="form-group">
+                        <label>年租金（元）</label>
+                        <input type="number" id="annualRent" value="190000" step="1000" data-key="annualRent">
+                    </div>
+                    <div class="form-group">
+                        <label>店长月薪（元）</label>
+                        <input type="number" id="salaryManager" value="4500" step="100" data-key="salaryManager">
+                    </div>
+                    <div class="form-group">
+                        <label>店员月薪 × 人数</label>
+                        <div class="input-row">
+                            <input type="number" id="salaryStaff" value="3500" step="100" style="flex:2" data-key="salaryStaff">
+                            <span style="color:var(--text-light)">×</span>
+                            <input type="number" id="staffCount" value="2" min="0" step="1" style="flex:1" data-key="staffCount">
+                            <span class="unit">人</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>水电费（元/月，年均）</label>
+                        <input type="number" id="utilities" value="2000" step="100" data-key="utilities">
+                    </div>
+                    <div class="form-group">
+                        <label>杂费（元/月）</label>
+                        <input type="number" id="miscCost" value="1000" step="100" data-key="miscCost">
+                    </div>
+                    <div class="form-group">
+                        <label>月营业天数</label>
+                        <input type="number" id="daysPerMonth" value="30" min="26" max="31" step="1" data-key="daysPerMonth">
+                    </div>
+                </div>
+                <div style="margin-top:6px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;color:var(--text-light)">
+                    月固定成本合计: <strong id="fTotal" style="color:#fff">--</strong> 元
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title collapsible-header" onclick="toggleCollapse(this)">
+                💵 营收与成本 <span class="hint">客单价、原料成本、目标</span>
+                <span class="icon">▼</span>
+            </div>
+            <div class="collapsible-body open">
+                <div class="grid-2" style="gap:6px">
+                    <div class="form-group">
+                        <label>平均客单价（元/杯）</label>
+                        <input type="number" id="avgPrice" value="12.5" step="0.5" data-key="avgPrice">
+                    </div>
+                    <div class="form-group">
+                        <label>原料+包材成本（元/杯）</label>
+                        <input type="number" id="materialCost" value="7.0" step="0.1" data-key="materialCost">
+                    </div>
+                    <div class="form-group">
+                        <label>目标回本周期（月）</label>
+                        <input type="number" id="targetPayback" value="18" min="6" max="60" step="1" data-key="targetPayback">
+                    </div>
+                    <div class="form-group">
+                        <label>每日营业时长（小时）</label>
+                        <input type="number" id="opHours" value="12" min="8" max="16" step="1" data-key="opHours">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title collapsible-header" onclick="toggleCollapse(this)">
+                🏢 品牌服务费（抽成规则）
+                <span class="icon">▼</span>
+            </div>
+            <div class="collapsible-body open">
+                <div style="font-size:11px;color:var(--text-light);margin-bottom:8px">
+                    公式: 服务费 = (月毛利 − 月房租 − <span id="feeOffsetLabel">10,000</span>) × 阶梯%
+                </div>
+                <div class="grid-3" style="gap:5px;font-size:11px">
+                    <div class="form-group">
+                        <label>免抽基数（元）</label>
+                        <input type="number" id="feeBaseDeduct" value="10000" step="1000" data-key="feeBaseDeduct">
+                    </div>
+                    <div class="form-group">
+                        <label>第1档上限/利率</label>
+                        <div class="input-row">
+                            <input type="number" id="feeTier1" value="10000" step="1000" style="flex:2" data-key="feeTier1">
+                            <input type="number" id="feeRate1" value="5" min="0" max="100" step="1" style="flex:1" data-key="feeRate1">
+                            <span class="unit">%</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>第2档上限/利率</label>
+                        <div class="input-row">
+                            <input type="number" id="feeTier2" value="20000" step="1000" style="flex:2" data-key="feeTier2">
+                            <input type="number" id="feeRate2" value="10" min="0" max="100" step="1" style="flex:1" data-key="feeRate2">
+                            <span class="unit">%</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>第3档上限/利率</label>
+                        <div class="input-row">
+                            <input type="number" id="feeTier3" value="30000" step="1000" style="flex:2" data-key="feeTier3">
+                            <input type="number" id="feeRate3" value="15" min="0" max="100" step="1" style="flex:1" data-key="feeRate3">
+                            <span class="unit">%</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>第4档上限/利率</label>
+                        <div class="input-row">
+                            <input type="number" id="feeTier4" value="40000" step="1000" style="flex:2" data-key="feeTier4">
+                            <input type="number" id="feeRate4" value="20" min="0" max="100" step="1" style="flex:1" data-key="feeRate4">
+                            <span class="unit">%</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>第5档(上限外)利率</label>
+                        <div class="input-row">
+                            <input type="number" id="feeRate5" value="25" min="0" max="100" step="1" data-key="feeRate5">
+                            <span class="unit">%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title collapsible-header" onclick="toggleCollapse(this)">
+                🚶 客流量参数 <span class="hint">需要实地观测数据</span>
+                <span class="icon">▼</span>
+            </div>
+            <div class="collapsible-body open">
+                <div class="grid-2" style="gap:6px">
+                    <div class="form-group"><label>观测每10分钟人流（人）</label>
+                        <input type="number" id="trafficObs" value="100" step="10" data-key="trafficObs">
+                    </div>
+                    <div class="form-group"><label>观测时段系数（14点=1.0）</label>
+                        <input type="number" id="trafficSlotFactor" value="1.0" step="0.1" data-key="trafficSlotFactor">
+                    </div>
+                    <div class="form-group"><label>店铺位置溢价（倍数）</label>
+                        <input type="number" id="trafficPremium" value="1.2" step="0.05" data-key="trafficPremium">
+                    </div>
+                    <div class="form-group"><label>工作日系数（周日=1.0）</label>
+                        <input type="number" id="weekdayFactor" value="0.6" step="0.05" data-key="weekdayFactor">
+                    </div>
+                </div>
+                <div style="margin-top:8px;font-size:12px;color:var(--text-light)">分时段客流系数:</div>
+                <div class="grid-4" style="margin-top:3px;gap:5px">
+                    <div class="form-group"><label>10-12点</label><input type="number" id="slot1" value="0.5" step="0.05" data-key="slot1"></div>
+                    <div class="form-group"><label>12-14点</label><input type="number" id="slot2" value="0.8" step="0.05" data-key="slot2"></div>
+                    <div class="form-group"><label>14-17点</label><input type="number" id="slot3" value="1.0" step="0.05" data-key="slot3"></div>
+                    <div class="form-group"><label>17-19点</label><input type="number" id="slot4" value="0.9" step="0.05" data-key="slot4"></div>
+                    <div class="form-group"><label>19-22点</label><input type="number" id="slot5" value="0.6" step="0.05" data-key="slot5"></div>
+                </div>
+                <div style="margin-top:8px;font-size:12px;color:var(--text-light)">季节性系数:</div>
+                <div class="grid-4" style="margin-top:3px;gap:5px">
+                    <div class="form-group"><label>春季(3-5月)</label><input type="number" id="seasonSpring" value="0.85" step="0.05" data-key="seasonSpring"></div>
+                    <div class="form-group"><label>夏季(6-8月)</label><input type="number" id="seasonSummer" value="1.15" step="0.05" data-key="seasonSummer"></div>
+                    <div class="form-group"><label>秋季(9-11月)</label><input type="number" id="seasonFall" value="0.90" step="0.05" data-key="seasonFall"></div>
+                    <div class="form-group"><label>冬季(12-2月)</label><input type="number" id="seasonWinter" value="0.65" step="0.05" data-key="seasonWinter"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- RIGHT: Results -->
+    <div>
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="tabOverview">📊 总览</button>
+            <button class="tab-btn" data-tab="tabDetail">📋 盈亏表</button>
+            <button class="tab-btn" data-tab="tabTraffic">🚶 客流分析</button>
+            <button class="tab-btn" data-tab="tabSensitivity">📈 敏感性</button>
+            <button class="tab-btn" data-tab="tabSeason">🌤 季节性</button>
+        </div>
+
+        <!-- Tab: Overview -->
+        <div class="tab-content active" id="tabOverview">
+            <div class="result-card" id="overviewCard">
+                <div class="stat-grid" style="grid-template-columns:1fr 1fr">
+                    <div class="stat-box"><div class="value" id="oBreakEven" style="color:var(--accent-yellow)">--</div><div class="label">☕ 盈亏平衡</div></div>
+                    <div class="stat-box"><div class="value" id="oTargetCups" style="color:var(--accent-blue)">--</div><div class="label">🎯 目标回本杯量</div></div>
+                    <div class="stat-box"><div class="value" id="oMonthlyProfit" style="color:var(--accent-green)">--</div><div class="label">💰 目标月净利</div></div>
+                    <div class="stat-box"><div class="value" id="oPaybackMonths" style="color:var(--accent-yellow)">--</div><div class="label">⏱ 回本周期</div></div>
+                </div>
+                <hr class="section-divider">
+                <div id="overviewVerdict"></div>
+            </div>
+        </div>
+
+        <!-- Tab: Detail -->
+        <div class="tab-content" id="tabDetail">
+            <div class="card"><div class="card-title">☕ 不同日均杯量 → 月盈利</div>
+                <div class="table-wrap"><table><thead><tr>
+                    <th>日均杯量</th><th>月营收</th><th>原料成本</th><th>月毛利</th><th>服务费</th><th>固定成本</th><th>月净利</th><th>回本周期</th>
+                </tr></thead><tbody id="detailTableBody"></tbody></table></div>
+            </div>
+        </div>
+
+        <!-- Tab: Traffic -->
+        <div class="tab-content" id="tabTraffic">
+            <div class="card"><div class="card-title">🚶 客流转化分析</div>
+                <div id="trafficContent"></div>
+            </div>
+        </div>
+
+        <!-- Tab: Sensitivity -->
+        <div class="tab-content" id="tabSensitivity">
+            <div class="card"><div class="card-title">📈 敏感性分析</div>
+                <div id="sensitivityContent"></div>
+            </div>
+        </div>
+
+        <!-- Tab: Season -->
+        <div class="tab-content" id="tabSeason">
+            <div class="card"><div class="card-title">🌤 季节性分析</div>
+                <div id="seasonContent"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div style="text-align:center;padding:16px;color:#555;font-size:11px">
+    所有修改自动保存到云端 · 分享码 <strong>{{ code }}</strong> · 对方随时可加入编辑
+</div>
+</div>
+
+<script>
+// ====== INIT ======
+const SHARE_CODE = '{{ code }}';
+const SAVE_INTERVAL_MS = 3000;
+let saveTimer = null;
+let hasChanges = false;
+
+// ====== Load saved data ======
+const INITIAL_DATA = {{ data | tojson | safe }};
+
+// ====== Helpers ======
+function $(id) { return document.getElementById(id); }
+function val(id) { return parseFloat($(id).value) || 0; }
+function fmt(n) { return Number(n).toLocaleString('zh-CN', {minimumFractionDigits:0, maximumFractionDigits:0}); }
+function fmt1(n) { return Number(n).toLocaleString('zh-CN', {minimumFractionDigits:1, maximumFractionDigits:1}); }
+function fmt2(n) { return Number(n).toLocaleString('zh-CN', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+function toggleCollapse(el) {
+    const body = el.parentElement.nextElementSibling;
+    body.classList.toggle('open');
+    el.querySelector('.icon').textContent = body.classList.contains('open') ? '▼' : '▶';
+}
+
+// ====== Load data from server ======
+function loadDataFromServer() {
+    fetch('/api/load/' + SHARE_CODE)
+        .then(r => r.json())
+        .then(resp => {
+            if (resp.data) {
+                applyData(resp.data);
+            }
+        })
+        .catch(e => console.log('Load error:', e));
+}
+
+function applyData(data) {
+    if (!data || Object.keys(data).length === 0) return;
+    document.querySelectorAll('[data-key]').forEach(el => {
+        const key = el.dataset.key;
+        if (data[key] !== undefined && data[key] !== null && data[key] !== '') {
+            el.value = data[key];
+        }
+    });
+    calculate();
+}
+
+// ====== Collect all field data ======
+function collectData() {
+    const data = {};
+    document.querySelectorAll('[data-key]').forEach(el => {
+        data[el.dataset.key] = el.value;
+    });
+    return data;
+}
+
+// ====== Save to server ======
+function saveToServer() {
+    $('saveStatus').textContent = '⏳ 保存中...';
+    $('saveStatus').className = 'save-status';
+    const data = collectData();
+    fetch('/api/save/' + SHARE_CODE, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(resp => {
+        if (resp.status === 'ok') {
+            $('saveStatus').textContent = '✓ 已保存 ' + new Date().toLocaleTimeString();
+            $('saveStatus').className = 'save-status saved';
+            $('lastSaved').textContent = '上次保存: ' + new Date().toLocaleTimeString();
+            hasChanges = false;
+        }
+    })
+    .catch(e => {
+        $('saveStatus').textContent = '✗ 保存失败';
+        $('saveStatus').className = 'save-status error';
+    });
+}
+
+function scheduleSave() {
+    hasChanges = true;
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveToServer, SAVE_INTERVAL_MS);
+}
+
+// ====== Copy share code ======
+function copyCode() {
+    const code = $('shareCode').textContent.trim();
+    navigator.clipboard.writeText(code).then(() => {
+        const btn = document.querySelector('.btn-copy');
+        btn.textContent = '✅ 已复制!';
+        setTimeout(() => { btn.textContent = '📋 复制分享码'; }, 2000);
+    }).catch(() => {
+        // Fallback
+        const ta = document.createElement('textarea');
+        ta.value = code;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+    });
+}
+
+// ====== Couchi Service Fee ======
+function calcServiceFee(revenue, materialCost, rent) {
+    const grossProfit = revenue - materialCost;
+    const base = grossProfit - rent - val('feeBaseDeduct');
+    const tiers = [
+        { limit: val('feeTier1'), rate: val('feeRate1') / 100 },
+        { limit: val('feeTier2'), rate: val('feeRate2') / 100 },
+        { limit: val('feeTier3'), rate: val('feeRate3') / 100 },
+        { limit: val('feeTier4'), rate: val('feeRate4') / 100 },
+    ];
+    const maxRate = val('feeRate5') / 100;
+    let rate = 0;
+    if (base <= 0) rate = 0;
+    else if (base <= tiers[0].limit) rate = tiers[0].rate;
+    else if (base <= tiers[1].limit) rate = tiers[1].rate;
+    else if (base <= tiers[2].limit) rate = tiers[2].rate;
+    else if (base <= tiers[3].limit) rate = tiers[3].rate;
+    else rate = maxRate;
+    return { fee: base > 0 ? base * rate : 0, rate, grossProfit };
+}
+
+// ====== Main Calculation ======
+function calculate() {
+    const equipment = val('equipment'), cabinetSign = val('cabinetSign');
+    const renovation = val('renovation'), designFee = val('designFee');
+    const firstBatch = val('firstBatch'), licenseMisc = val('licenseMisc');
+    const deposit = val('deposit'), workingCapital = val('workingCapital');
+    const annualRent = val('annualRent'), rentMonthly = annualRent / 12;
+    const salaryManager = val('salaryManager'), salaryStaff = val('salaryStaff');
+    const staffCount = val('staffCount'), utilities = val('utilities');
+    const miscCost = val('miscCost'), daysPerMonth = val('daysPerMonth');
+    const avgPrice = val('avgPrice'), materialCost = val('materialCost');
+    const targetPayback = val('targetPayback'), opHours = val('opHours');
+
+    const sunk = equipment + cabinetSign + renovation + designFee + firstBatch + licenseMisc;
+    const totalNeeded = sunk + deposit + workingCapital;
+    $('iSunk').textContent = fmt(sunk);
+    $('iTotal').textContent = fmt(totalNeeded);
+
+    const staffTotal = salaryManager + salaryStaff * staffCount;
+    const fixedMonthly = rentMonthly + staffTotal + utilities + miscCost;
+    $('fTotal').textContent = fmt(Math.round(fixedMonthly));
+
+    const targetMonthlyProfit = sunk / targetPayback;
+
+    function computeNet(cupsPerDay) {
+        const monthlyCups = cupsPerDay * daysPerMonth;
+        const revenue = monthlyCups * avgPrice;
+        const matCost = monthlyCups * materialCost;
+        const sf = calcServiceFee(revenue, matCost, rentMonthly);
+        const net = revenue - matCost - sf.fee - fixedMonthly;
+        return { revenue, matCost, grossProfit: sf.grossProfit, fee: sf.fee, feeRate: sf.rate, net };
+    }
+
+    // Break-even
+    let beCups = 0;
+    for (let c = 1; c <= 500; c++) { const r = computeNet(c); if (r.net >= 0) { beCups = c; break; } }
+    if (beCups === 0) beCups = 500;
+
+    // Target cups
+    let targetCups = 0;
+    for (let c = 1; c <= 600; c++) { const r = computeNet(c); if (r.net >= targetMonthlyProfit) { targetCups = c; break; } }
+    if (targetCups === 0) targetCups = 600;
+
+    const targetResult = computeNet(targetCups);
+
+    // Summary bar
+    $('sBreakEven').textContent = beCups + ' 杯';
+    $('sTargetCups').textContent = targetCups + ' 杯';
+    $('sMonthlyProfit').textContent = fmt(Math.round(targetResult.net)) + ' 元';
+    $('sPayback').textContent = targetResult.net > 0 ? fmt1(sunk / targetResult.net) + '月' : '∞';
+
+    // Overview tab
+    $('oBreakEven').textContent = beCups + ' 杯';
+    $('oTargetCups').textContent = targetCups + ' 杯';
+    $('oMonthlyProfit').textContent = fmt(Math.round(targetMonthlyProfit)) + ' 元';
+    $('oPaybackMonths').textContent = targetResult.net > 0 ? fmt1(sunk / targetResult.net) + ' 个月' : '无法回本';
+
+    // Traffic
+    const obsFlow = val('trafficObs'), slotFactor = val('trafficSlotFactor');
+    const premium = val('trafficPremium'), wdFactor = val('weekdayFactor');
+    const s1 = val('slot1'), s2 = val('slot2'), s3 = val('slot3'), s4 = val('slot4'), s5 = val('slot5');
+    const peakHourlyFlow = (obsFlow * 6) / slotFactor;
+    const storeHourlyFlow = peakHourlyFlow * premium;
+    const slotHours = [2, 2, 3, 2, 3], slotFactors = [s1, s2, s3, s4, s5];
+    let sundayFlow = 0;
+    for (let i = 0; i < 5; i++) sundayFlow += storeHourlyFlow * slotFactors[i] * slotHours[i];
+    const weekdayFlow = sundayFlow * wdFactor;
+    const avgDailyFlow = (weekdayFlow * 5 + sundayFlow * 2) / 7;
+
+    const seasonFactors = {
+        '春季(3-5月)': val('seasonSpring'), '夏季(6-8月)': val('seasonSummer'),
+        '秋季(9-11月)': val('seasonFall'), '冬季(12-2月)': val('seasonWinter'),
+    };
+    const seasonKeys = Object.keys(seasonFactors);
+    let weightedAnnualFlow = 0;
+    seasonKeys.forEach(k => { weightedAnnualFlow += avgDailyFlow * seasonFactors[k]; });
+    weightedAnnualFlow /= seasonKeys.length;
+
+    const convNeeded = targetCups / weightedAnnualFlow * 100;
+    $('sConversion').textContent = fmt2(convNeeded) + '%';
+
+    let verdict, verdictClass, verdictColor;
+    if (convNeeded <= 2) { verdict = '✅ 可行性较高'; verdictClass = 'tag green'; verdictColor = 'var(--accent-green)'; }
+    else if (convNeeded <= 3.5) { verdict = '⚠️ 可行，需努力'; verdictClass = 'tag yellow'; verdictColor = 'var(--accent-yellow)'; }
+    else if (convNeeded <= 5) { verdict = '⚠️ 有挑战'; verdictClass = 'tag yellow'; verdictColor = 'var(--accent-yellow)'; }
+    else { verdict = '❌ 非常困难'; verdictClass = 'tag red'; verdictColor = 'var(--accent-red)'; }
+    $('sVerdict').textContent = verdict.replace(/[✅❌⚠️]/g,'').trim();
+    $('sVerdict').style.color = verdictColor;
+
+    // Overview verdict
+    let vhtml = `
+        <div style="text-align:center;padding:10px">
+            <span class="${verdictClass}" style="font-size:16px;padding:5px 16px">${verdict}</span>
+            <div style="margin-top:10px;font-size:13px;color:var(--text-light)">
+                目标<strong>${targetPayback}个月回本</strong>，日均需<strong>${targetCups}杯</strong> | 
+                年均日客流<strong>${Math.round(weightedAnnualFlow).toLocaleString()}人</strong> | 
+                需转化率<strong>${fmt2(convNeeded)}%</strong>
+            </div>
+        </div>
+        <hr class="section-divider">
+        <div style="font-size:12px;color:var(--text-light);line-height:1.8">
+            <div>• 盈亏平衡线：日均 <strong style="color:var(--accent-yellow)">${beCups} 杯</strong></div>
+            <div>• ${targetPayback}月回本线：日均 <strong style="color:var(--accent-blue)">${targetCups} 杯</strong></div>
+            <div>• 租金占固定成本：<strong>${(rentMonthly/fixedMonthly*100).toFixed(0)}%</strong></div>
+            <div>• 单杯毛利：<strong>${fmt2(avgPrice - materialCost)} 元</strong>（毛利率 ${((avgPrice-materialCost)/avgPrice*100).toFixed(1)}%）</div>
+        </div>
+    `;
+    $('overviewVerdict').innerHTML = vhtml;
+
+    // Detail table
+    const cupList = [...Array(16).keys()].map(i => (i + 1) * 25).concat([263, 275, 300, 350, 400, 450]).sort((a,b)=>a-b);
+    let thtml = '';
+    cupList.forEach(c => {
+        const r = computeNet(c);
+        let pb = '无法回本', rc = '';
+        if (r.net > 0) { pb = fmt1(sunk / r.net) + '月'; if (Math.abs(c - targetCups) <= 3) rc = 'highlight-row'; }
+        const nc = r.net > 0 ? 'positive' : (r.net < 0 ? 'negative' : 'neutral');
+        thtml += `<tr class="${rc}"><td>${c}杯</td><td>${fmt(Math.round(r.revenue))}</td><td>${fmt(Math.round(r.matCost))}</td><td>${fmt(Math.round(r.grossProfit))}</td><td>${fmt(Math.round(r.fee))} (${(r.feeRate*100).toFixed(0)}%)</td><td>${fmt(Math.round(fixedMonthly))}</td><td class="${nc}">${r.net >= 0 ? '+' : ''}${fmt(Math.round(r.net))}</td><td>${pb}</td></tr>`;
+    });
+    $('detailTableBody').innerHTML = thtml;
+
+    // Traffic tab
+    let trafficHTML = `<div style="font-size:12px;line-height:2">
+        <table><tr><td>观测: 每10分钟${obsFlow}人 (${slotFactor.toFixed(1)}×基准)</td><td>高峰: <strong>${Math.round(peakHourlyFlow)}</strong> 人/时</td></tr>
+        <tr><td>店前溢价 ${premium.toFixed(1)}×</td><td>店前高峰: <strong>${Math.round(storeHourlyFlow)}</strong> 人/时</td></tr></table>
+        <hr class="section-divider">
+        <div style="font-weight:600;margin-bottom:6px;font-size:12px">日均客流:</div>
+        <table><thead><tr><th>时段</th><th>时长</th><th>系数</th><th>客流</th></tr></thead>`;
+    const labels = ['10:00-12:00','12:00-14:00','14:00-17:00','17:00-19:00','19:00-22:00'];
+    let totalSun = 0;
+    for (let i=0; i<5; i++) { const f = storeHourlyFlow * slotFactors[i] * slotHours[i]; totalSun += f;
+        trafficHTML += `<tr><td>${labels[i]}</td><td>${slotHours[i]}h</td><td>${slotFactors[i].toFixed(1)}</td><td>${Math.round(f).toLocaleString()}人</td></tr>`;
+    }
+    trafficHTML += `<tr style="font-weight:600;border-top:2px solid var(--border)"><td>周日合计</td><td></td><td></td><td>${Math.round(totalSun).toLocaleString()}人</td></tr>
+        <tr><td>工作日 (×${wdFactor.toFixed(1)})</td><td></td><td></td><td>${Math.round(weekdayFlow).toLocaleString()}人</td></tr>
+        <tr style="font-weight:600"><td>月均日客流</td><td></td><td></td><td>${Math.round(avgDailyFlow).toLocaleString()}人</td></tr></table>
+        <hr class="section-divider"><div style="font-weight:600;margin-bottom:6px;font-size:12px">转化率分析:</div>
+        <table><thead><tr><th>转化率</th><th>冬季淡季</th><th>年均</th><th>夏季旺季</th><th>达标?</th></tr></thead>`;
+    [0.5,1.0,1.5,2.0,2.5,3.0,4.0,5.0,6.0,7.0,8.0].forEach(cr => {
+        const p = cr/100, w = avgDailyFlow * seasonFactors['冬季(12-2月)'] * p;
+        const a = weightedAnnualFlow * p, s = avgDailyFlow * seasonFactors['夏季(6-8月)'] * p;
+        const ok = a >= targetCups ? '✅' : '❌';
+        trafficHTML += `<tr><td>${cr.toFixed(1)}%</td><td>${Math.round(w)}杯</td><td>${Math.round(a)}杯</td><td>${Math.round(s)}杯</td><td class="${ok==='✅'?'positive':'negative'}">${ok}</td></tr>`;
+    });
+    trafficHTML += `</table><hr class="section-divider"><div style="font-size:11px;color:var(--text-light)">行业参考: 一般商场咖啡店 0.5%~3% | 核心商圈 2%~5% | 瑞幸/库迪 1.5%~4%</div></div>`;
+    $('trafficContent').innerHTML = trafficHTML;
+
+    // Sensitivity
+    const baseNet = targetResult.net;
+    function sensTest(key, baseVal, direction) {
+        const m = direction === 'minus' ? 0.9 : 1.1;
+        if (key === 'avgPrice') {
+            const mc = targetCups * daysPerMonth; const rev = mc * baseVal * m; const mat = mc * materialCost;
+            const sf = calcServiceFee(rev, mat, rentMonthly); return rev - mat - sf.fee - fixedMonthly;
+        } else if (key === 'cups') { return computeNet(Math.round(baseVal * m)).net;
+        } else if (key === 'materialCost') {
+            const mc = targetCups * daysPerMonth; const rev = mc * avgPrice; const mat = mc * baseVal * m;
+            const sf = calcServiceFee(rev, mat, rentMonthly); return rev - mat - sf.fee - fixedMonthly;
+        } else if (key === 'rent') {
+            const nr = baseVal * m; const mc = targetCups * daysPerMonth; const rev = mc * avgPrice; const mat = mc * materialCost;
+            const sf = calcServiceFee(rev, mat, nr); const nf = fixedMonthly - rentMonthly + nr; return rev - mat - sf.fee - nf;
+        } else if (key === 'staffTotal') {
+            const ns = baseVal * m; const mc = targetCups * daysPerMonth; const rev = mc * avgPrice; const mat = mc * materialCost;
+            const sf = calcServiceFee(rev, mat, rentMonthly); const nf = fixedMonthly - staffTotal + ns; return rev - mat - sf.fee - nf;
+        }
+        return 0;
+    }
+    let sensHTML = `<div style="font-size:12px;color:var(--text-light);margin-bottom:8px">基准: 日均${targetCups}杯，月净利 <strong>${fmt(Math.round(baseNet))}</strong> 元</div>
+        <table><thead><tr><th>变量</th><th>-10%</th><th>基准</th><th>+10%</th><th>影响幅度</th></tr></thead>`;
+    [['客单价','avgPrice',avgPrice],['日均杯量','cups',targetCups],['原料成本','materialCost',materialCost],['月租金','rent',rentMonthly],['人工总成本','staffTotal',staffTotal]].forEach(v => {
+        const mn = sensTest(v[1], v[2], 'minus'), mp = sensTest(v[1], v[2], 'plus');
+        sensHTML += `<tr><td>${v[0]}</td><td class="${mn>=0?'positive':'negative'}">${mn>=0?'+':''}${fmt(Math.round(mn))}</td><td>${baseNet>=0?'+':''}${fmt(Math.round(baseNet))}</td><td class="${mp>=0?'positive':'negative'}">${mp>=0?'+':''}${fmt(Math.round(mp))}</td><td><strong>${fmt(Math.round(Math.abs(mp-mn)))}</strong>元</td></tr>`;
+    });
+    sensHTML += `</table><hr class="section-divider"><div style="font-size:11px;color:var(--text-light)">💡 客单价和杯量影响最大，开源比节流更重要。</div>`;
+    $('sensitivityContent').innerHTML = sensHTML;
+
+    // Season
+    let seasHTML = `<div style="font-size:12px;margin-bottom:8px">基准日均客流: ${Math.round(avgDailyFlow).toLocaleString()}人</div>
+        <table><thead><tr><th>季节</th><th>系数</th><th>日均客流</th><th>×${fmt2(convNeeded)}%转化</th><th>月净利估算</th></tr></thead>`;
+    seasonKeys.forEach(k => {
+        const f = seasonFactors[k], df = avgDailyFlow * f, cups = df * (convNeeded/100), r = computeNet(cups);
+        seasHTML += `<tr><td>${k}</td><td>${f.toFixed(2)}</td><td>${Math.round(df).toLocaleString()}人</td><td>${fmt1(cups)}杯</td><td class="${r.net>=0?'positive':'negative'}">${r.net>=0?'+':''}${fmt(Math.round(r.net))}元</td></tr>`;
+    });
+    seasHTML += `</table><hr class="section-divider"><div style="font-size:11px;color:var(--text-light)">⚠️ 内蒙古冬季(12-2月)客流下降约35%，是最大挑战。☀️ 夏季(6-8月)是赚钱窗口期。</div>`;
+    $('seasonContent').innerHTML = seasHTML;
+
+    $('feeOffsetLabel').textContent = fmt(val('feeBaseDeduct'));
+}
+
+// ====== Tabs ======
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        $(this.dataset.tab).classList.add('active');
+    });
+});
+
+// ====== Bind events ======
+document.querySelectorAll('input').forEach(el => {
+    el.addEventListener('input', () => { calculate(); scheduleSave(); });
+});
+
+// ====== Auto-reload every 15 seconds to get other's changes ======
+setInterval(() => {
+    loadDataFromServer();
+}, 15000);
+
+// ====== Init ======
+applyData(INITIAL_DATA);
+calculate();
+</script>
+</body>
+</html>
