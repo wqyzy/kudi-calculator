@@ -237,30 +237,34 @@
 
 <!-- Summary Bar -->
 <div class="result-card" id="summaryBar">
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <span class="tag blue" style="font-size:12px">▶ 正向计算（基于输入转化率）</span>
+        <span class="tag yellow" style="font-size:12px">◀ 反算（基于目标回本周期）</span>
+    </div>
     <div class="stat-grid">
         <div class="stat-box">
-            <div class="value" id="sBreakEven" style="color:var(--accent-yellow)">--</div>
-            <div class="label">☕ 盈亏平衡（杯/天）</div>
+            <div class="value" id="sActualCups" style="color:var(--accent-blue)">--</div>
+            <div class="label">☕ 实际日均杯量（正向）</div>
         </div>
         <div class="stat-box">
-            <div class="value" id="sTargetCups" style="color:var(--accent-blue)">--</div>
-            <div class="label">🎯 目标回本（杯/天）</div>
+            <div class="value" id="sActualNetProfit" style="color:var(--accent-green)">--</div>
+            <div class="label">📈 实际月净利（正向）</div>
         </div>
         <div class="stat-box">
-            <div class="value" id="sMonthlyProfit" style="color:var(--accent-green)">--</div>
-            <div class="label">📈 月净利（目标杯量）</div>
+            <div class="value" id="sActualPayback" style="color:var(--accent-yellow)">--</div>
+            <div class="label">⏱ 实际回本周期（正向）</div>
         </div>
         <div class="stat-box">
-            <div class="value" id="sPayback" style="color:var(--accent-yellow)">--</div>
-            <div class="label">⏱ 回本周期</div>
+            <div class="value" id="sBreakEvenGP" style="color:var(--accent-yellow)">--</div>
+            <div class="label">⚖️ 盈亏平衡月毛利（反算）</div>
         </div>
         <div class="stat-box">
-            <div class="value" id="sConversion" style="color:var(--accent-blue)">--</div>
-            <div class="label">🔄 需转化率</div>
+            <div class="value" id="sTargetNetProfit" style="color:var(--accent-blue)">--</div>
+            <div class="label">🎯 1.5年回本需月净利（反算）</div>
         </div>
         <div class="stat-box">
             <div class="value" id="sVerdict" style="font-size:18px">--</div>
-            <div class="label">📊 判断</div>
+            <div class="label">📊 综合判断</div>
         </div>
     </div>
 </div>
@@ -478,6 +482,15 @@
                     <div class="form-group"><label>秋季(9-11月)</label><input type="number" id="seasonFall" value="0.90" step="0.05" data-key="seasonFall"></div>
                     <div class="form-group"><label>冬季(12-2月)</label><input type="number" id="seasonWinter" value="0.65" step="0.05" data-key="seasonWinter"></div>
                 </div>
+                <hr class="section-divider">
+                <div class="form-group">
+                    <label>🎯 客流转化率（输入，推荐2%~5%）</label>
+                    <div class="input-row">
+                        <input type="number" id="conversionRate" value="3.0" step="0.1" min="0" max="30" data-key="conversionRate">
+                        <span class="unit">%</span>
+                    </div>
+                    <div style="font-size:11px;color:#666;margin-top:2px">行业参考：普通商场1~3% | 核心商圈2~5% | 优质点位3~6%</div>
+                </div>
             </div>
         </div>
 
@@ -497,10 +510,10 @@
         <div class="tab-content active" id="tabOverview">
             <div class="result-card" id="overviewCard">
                 <div class="stat-grid" style="grid-template-columns:1fr 1fr">
-                    <div class="stat-box"><div class="value" id="oBreakEven" style="color:var(--accent-yellow)">--</div><div class="label">☕ 盈亏平衡</div></div>
-                    <div class="stat-box"><div class="value" id="oTargetCups" style="color:var(--accent-blue)">--</div><div class="label">🎯 目标回本杯量</div></div>
-                    <div class="stat-box"><div class="value" id="oMonthlyProfit" style="color:var(--accent-green)">--</div><div class="label">💰 目标月净利</div></div>
-                    <div class="stat-box"><div class="value" id="oPaybackMonths" style="color:var(--accent-yellow)">--</div><div class="label">⏱ 回本周期</div></div>
+                    <div class="stat-box"><div class="value" id="oBreakEven" style="color:var(--accent-yellow)">--</div><div class="label">⚖️ 盈亏平衡月毛利（反算）</div></div>
+                    <div class="stat-box"><div class="value" id="oTargetCups" style="color:var(--accent-blue)">--</div><div class="label">🎯 1.5年回本需月净利（反算）</div></div>
+                    <div class="stat-box"><div class="value" id="oMonthlyProfit" style="color:var(--accent-green)">--</div><div class="label">💰 实际月净利（正向）</div></div>
+                    <div class="stat-box"><div class="value" id="oPaybackMonths" style="color:var(--accent-yellow)">--</div><div class="label">⏱ 实际回本周期（正向）</div></div>
                 </div>
                 <hr class="section-divider">
                 <div id="overviewVerdict"></div>
@@ -671,6 +684,7 @@ function calcServiceFee(revenue, materialCost, rent) {
 
 // ====== Main Calculation ======
 function calculate() {
+    // ========== READ ALL INPUTS ==========
     const equipment = val('equipment'), cabinetSign = val('cabinetSign');
     const renovation = val('renovation'), designFee = val('designFee');
     const firstBatch = val('firstBatch'), licenseMisc = val('licenseMisc');
@@ -681,52 +695,30 @@ function calculate() {
     const miscCost = val('miscCost'), daysPerMonth = val('daysPerMonth');
     const avgPrice = val('avgPrice'), materialCost = val('materialCost');
     const targetPayback = val('targetPayback'), opHours = val('opHours');
+    const conversionRate = val('conversionRate') / 100; // 用户输入的转化率
 
+    // ========== INVESTMENT SUMMARY ==========
     const sunk = equipment + cabinetSign + renovation + designFee + firstBatch + licenseMisc;
     const totalNeeded = sunk + deposit + workingCapital;
     $('iSunk').textContent = fmt(sunk);
     $('iTotal').textContent = fmt(totalNeeded);
 
+    // ========== FIXED COSTS ==========
     const staffTotal = salaryManager + salaryStaff * staffCount;
     const fixedMonthly = rentMonthly + staffTotal + utilities + miscCost;
     $('fTotal').textContent = fmt(Math.round(fixedMonthly));
 
-    const targetMonthlyProfit = sunk / targetPayback;
-
+    // ========== CORE: computeNet(cupsPerDay) ==========
     function computeNet(cupsPerDay) {
         const monthlyCups = cupsPerDay * daysPerMonth;
         const revenue = monthlyCups * avgPrice;
         const matCost = monthlyCups * materialCost;
         const sf = calcServiceFee(revenue, matCost, rentMonthly);
         const net = revenue - matCost - sf.fee - fixedMonthly;
-        return { revenue, matCost, grossProfit: sf.grossProfit, fee: sf.fee, feeRate: sf.rate, net };
+        return { revenue, matCost, grossProfit: sf.grossProfit, fee: sf.fee, feeRate: sf.rate, net, monthlyCups };
     }
 
-    // Break-even
-    let beCups = 0;
-    for (let c = 1; c <= 500; c++) { const r = computeNet(c); if (r.net >= 0) { beCups = c; break; } }
-    if (beCups === 0) beCups = 500;
-
-    // Target cups
-    let targetCups = 0;
-    for (let c = 1; c <= 600; c++) { const r = computeNet(c); if (r.net >= targetMonthlyProfit) { targetCups = c; break; } }
-    if (targetCups === 0) targetCups = 600;
-
-    const targetResult = computeNet(targetCups);
-
-    // Summary bar
-    $('sBreakEven').textContent = beCups + ' 杯';
-    $('sTargetCups').textContent = targetCups + ' 杯';
-    $('sMonthlyProfit').textContent = fmt(Math.round(targetResult.net)) + ' 元';
-    $('sPayback').textContent = targetResult.net > 0 ? fmt1(sunk / targetResult.net) + '月' : '∞';
-
-    // Overview tab
-    $('oBreakEven').textContent = beCups + ' 杯';
-    $('oTargetCups').textContent = targetCups + ' 杯';
-    $('oMonthlyProfit').textContent = fmt(Math.round(targetMonthlyProfit)) + ' 元';
-    $('oPaybackMonths').textContent = targetResult.net > 0 ? fmt1(sunk / targetResult.net) + ' 个月' : '无法回本';
-
-    // Traffic
+    // ========== TRAFFIC CALCULATION ==========
     const obsFlow = val('trafficObs'), slotFactor = val('trafficSlotFactor');
     const premium = val('trafficPremium'), wdFactor = val('weekdayFactor');
     const s1 = val('slot1'), s2 = val('slot2'), s3 = val('slot3'), s4 = val('slot4'), s5 = val('slot5');
@@ -747,50 +739,140 @@ function calculate() {
     seasonKeys.forEach(k => { weightedAnnualFlow += avgDailyFlow * seasonFactors[k]; });
     weightedAnnualFlow /= seasonKeys.length;
 
-    const convNeeded = targetCups / weightedAnnualFlow * 100;
-    $('sConversion').textContent = fmt2(convNeeded) + '%';
+    // ========== 正向计算（基于输入的转化率） ==========
+    const actualDailyCups = Math.round(weightedAnnualFlow * conversionRate);
+    const actualResult = computeNet(actualDailyCups > 0 ? actualDailyCups : 0);
+    const actualMonthlyNet = actualResult.net;
+    const actualPaybackMonths = actualMonthlyNet > 0 ? sunk / actualMonthlyNet : Infinity;
+
+    // ========== 反算1：盈亏平衡月毛利 ==========
+    // 解方程：GP - fee(GP) = fixedMonthly
+    // 其中 fee(GP) = max(0, (GP - rent - baseDeduct) * rate_if_applicable)
+    // 迭代求解
+    function findBreakEvenGP() {
+        // 先试一个简单的：从0开始，步进100元往上找
+        for (let gp = 0; gp <= 500000; gp += 100) {
+            const rev = gp / (1 - materialCost / avgPrice); // rough estimate to get fee context
+            // Actually, fee is a function of (revenue - materialCost) which IS gp
+            // So fee = f(gp) where f depends on (gp - rentMonthly - feeBaseDeduct)
+            const base = gp - rentMonthly - val('feeBaseDeduct');
+            let rate = 0;
+            if (base > 0) {
+                const t1 = val('feeTier1'), t2 = val('feeTier2'), t3 = val('feeTier3'), t4 = val('feeTier4');
+                const r1 = val('feeRate1')/100, r2 = val('feeRate2')/100, r3 = val('feeRate3')/100, r4 = val('feeRate4')/100, r5 = val('feeRate5')/100;
+                if (base <= t1) rate = r1;
+                else if (base <= t2) rate = r2;
+                else if (base <= t3) rate = r3;
+                else if (base <= t4) rate = r4;
+                else rate = r5;
+            }
+            const fee = base > 0 ? base * rate : 0;
+            if (gp - fee >= fixedMonthly) {
+                return gp;
+            }
+        }
+        return 0;
+    }
+    const breakEvenGP = findBreakEvenGP();
+
+    // 对应的盈亏平衡杯量（用平均单杯毛利反推）
+    const marginPerCup = avgPrice - materialCost;
+    const beCups = marginPerCup > 0 ? Math.ceil(breakEvenGP / marginPerCup / daysPerMonth) : 0;
+    const beResult = computeNet(beCups);
+
+    // ========== 反算2：1.5年回本需要的月净利 ==========
+    const targetMonthlyProfit = sunk / targetPayback;
+    // 找到需要达到目标月净利的杯量
+    let targetCups = 0;
+    for (let c = 1; c <= 600; c++) {
+        const r = computeNet(c);
+        if (r.net >= targetMonthlyProfit) { targetCups = c; break; }
+    }
+    if (targetCups === 0) targetCups = 600;
+    const targetResult = computeNet(targetCups);
+
+    // ========== 判断逻辑（基于实际转化率vs需求转化率） ==========
+    const actualConvRate = conversionRate * 100; // 用户输入的%
+    const neededConvRate = targetCups / weightedAnnualFlow * 100; // 为了1.5年回本需要的%
 
     let verdict, verdictClass, verdictColor;
-    if (convNeeded <= 2) { verdict = '✅ 可行性较高'; verdictClass = 'tag green'; verdictColor = 'var(--accent-green)'; }
-    else if (convNeeded <= 3.5) { verdict = '⚠️ 可行，需努力'; verdictClass = 'tag yellow'; verdictColor = 'var(--accent-yellow)'; }
-    else if (convNeeded <= 5) { verdict = '⚠️ 有挑战'; verdictClass = 'tag yellow'; verdictColor = 'var(--accent-yellow)'; }
-    else { verdict = '❌ 非常困难'; verdictClass = 'tag red'; verdictColor = 'var(--accent-red)'; }
+    if (actualConvRate >= neededConvRate * 1.1) {
+        verdict = '✅ 可行性较高'; verdictClass = 'tag green'; verdictColor = 'var(--accent-green)';
+    } else if (actualConvRate >= neededConvRate * 0.8) {
+        verdict = '⚠️ 接近目标，需努力'; verdictClass = 'tag yellow'; verdictColor = 'var(--accent-yellow)';
+    } else if (actualConvRate >= neededConvRate * 0.5) {
+        verdict = '⚠️ 有差距，需提升'; verdictClass = 'tag yellow'; verdictColor = 'var(--accent-yellow)';
+    } else {
+        verdict = '❌ 差距大，重新评估'; verdictClass = 'tag red'; verdictColor = 'var(--accent-red)';
+    }
+
+    // ========== 更新 Summary Bar ==========
+    $('sActualCups').textContent = actualDailyCups + ' 杯';
+    $('sActualNetProfit').textContent = fmt(Math.round(actualMonthlyNet)) + ' 元';
+    $('sActualPayback').textContent = isFinite(actualPaybackMonths) ? fmt1(actualPaybackMonths) + '月' : '∞';
+    $('sBreakEvenGP').textContent = fmt(breakEvenGP) + ' 元';
+    $('sTargetNetProfit').textContent = fmt(Math.round(targetMonthlyProfit)) + ' 元';
     $('sVerdict').textContent = verdict.replace(/[✅❌⚠️]/g,'').trim();
     $('sVerdict').style.color = verdictColor;
 
-    // Overview verdict
+    // ========== 更新 Overview 总览 Tab ==========
+    $('oBreakEven').textContent = fmt(breakEvenGP) + ' 元（月毛利）';
+    $('oTargetCups').textContent = fmt(Math.round(targetMonthlyProfit)) + ' 元（月净利）';
+    $('oMonthlyProfit').textContent = fmt(Math.round(actualMonthlyNet)) + ' 元';
+    $('oPaybackMonths').textContent = isFinite(actualPaybackMonths) ? fmt1(actualPaybackMonths) + ' 个月' : '无法回本';
+
     let vhtml = `
-        <div style="text-align:center;padding:10px">
-            <span class="${verdictClass}" style="font-size:16px;padding:5px 16px">${verdict}</span>
-            <div style="margin-top:10px;font-size:13px;color:var(--text-light)">
-                目标<strong>${targetPayback}个月回本</strong>，日均需<strong>${targetCups}杯</strong> | 
-                年均日客流<strong>${Math.round(weightedAnnualFlow).toLocaleString()}人</strong> | 
-                需转化率<strong>${fmt2(convNeeded)}%</strong>
+        <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+            <div style="flex:1;min-width:200px;background:rgba(33,150,243,0.08);border-radius:8px;padding:12px">
+                <div style="font-size:11px;color:var(--text-light)">▶ 正向计算结果（转化率 ${(conversionRate*100).toFixed(1)}%）</div>
+                <div style="margin-top:6px;font-size:13px;line-height:1.8">
+                    <div>实际日均杯量：<strong>${actualDailyCups} 杯</strong></div>
+                    <div>实际月净利：<strong style="color:${actualMonthlyNet>=0?'var(--accent-green)':'var(--accent-red)'}">${actualMonthlyNet>=0?'+':''}${fmt(Math.round(actualMonthlyNet))} 元</strong></div>
+                    <div>实际回本周期：<strong>${isFinite(actualPaybackMonths) ? fmt1(actualPaybackMonths)+'个月' : '无法回本'}</strong></div>
+                </div>
+            </div>
+            <div style="flex:1;min-width:200px;background:rgba(255,152,0,0.08);border-radius:8px;padding:12px">
+                <div style="font-size:11px;color:var(--text-light)">◀ 反算结果（目标${targetPayback}个月回本）</div>
+                <div style="margin-top:6px;font-size:13px;line-height:1.8">
+                    <div>盈亏平衡：月毛利需达 <strong style="color:var(--accent-yellow)">${fmt(breakEvenGP)} 元</strong></div>
+                    <div>目标回本：月净利需达 <strong style="color:var(--accent-blue)">${fmt(Math.round(targetMonthlyProfit))} 元</strong></div>
+                    <div>相当于日均 <strong>${targetCups} 杯</strong>（需转化率 ${fmt2(neededConvRate)}%）</div>
+                </div>
+            </div>
+        </div>
+        <div style="text-align:center;padding:6px">
+            <span class="${verdictClass}" style="font-size:15px;padding:4px 14px">${verdict}</span>
+            <div style="margin-top:8px;font-size:12px;color:var(--text-light)">
+                你填入的转化率 <strong>${(conversionRate*100).toFixed(1)}%</strong> vs 目标所需 <strong>${fmt2(neededConvRate)}%</strong>
             </div>
         </div>
         <hr class="section-divider">
         <div style="font-size:12px;color:var(--text-light);line-height:1.8">
-            <div>• 盈亏平衡线：日均 <strong style="color:var(--accent-yellow)">${beCups} 杯</strong></div>
-            <div>• ${targetPayback}月回本线：日均 <strong style="color:var(--accent-blue)">${targetCups} 杯</strong></div>
-            <div>• 租金占固定成本：<strong>${(rentMonthly/fixedMonthly*100).toFixed(0)}%</strong></div>
             <div>• 单杯毛利：<strong>${fmt2(avgPrice - materialCost)} 元</strong>（毛利率 ${((avgPrice-materialCost)/avgPrice*100).toFixed(1)}%）</div>
+            <div>• 租金占固定成本：<strong>${(rentMonthly/fixedMonthly*100).toFixed(0)}%</strong>（${fmt(Math.round(rentMonthly))}元 / ${fmt(Math.round(fixedMonthly))}元）</div>
+            <div>• 初始投资净额：<strong>${fmt(sunk)} 元</strong> | 月固定成本：<strong>${fmt(Math.round(fixedMonthly))} 元</strong></div>
         </div>
     `;
     $('overviewVerdict').innerHTML = vhtml;
 
-    // Detail table
-    const cupList = [...Array(16).keys()].map(i => (i + 1) * 25).concat([263, 275, 300, 350, 400, 450]).sort((a,b)=>a-b);
+    // ========== Detail Table（保留原样，加一行高亮实际杯量） ==========
+    const cupList = [...Array(20).keys()].map(i => (i + 1) * 25).concat([actualDailyCups, targetCups]).filter(c => c > 0).sort((a,b)=>a-b);
     let thtml = '';
+    const seen = new Set();
     cupList.forEach(c => {
+        if (seen.has(c)) return; seen.add(c);
         const r = computeNet(c);
         let pb = '无法回本', rc = '';
-        if (r.net > 0) { pb = fmt1(sunk / r.net) + '月'; if (Math.abs(c - targetCups) <= 3) rc = 'highlight-row'; }
+        if (r.net > 0) { pb = fmt1(sunk / r.net) + '月'; }
+        if (c === actualDailyCups) rc = 'highlight-row';
+        else if (Math.abs(c - targetCups) <= 2) { if (rc !== 'highlight-row') rc = 'highlight-row'; }
         const nc = r.net > 0 ? 'positive' : (r.net < 0 ? 'negative' : 'neutral');
-        thtml += `<tr class="${rc}"><td>${c}杯</td><td>${fmt(Math.round(r.revenue))}</td><td>${fmt(Math.round(r.matCost))}</td><td>${fmt(Math.round(r.grossProfit))}</td><td>${fmt(Math.round(r.fee))} (${(r.feeRate*100).toFixed(0)}%)</td><td>${fmt(Math.round(fixedMonthly))}</td><td class="${nc}">${r.net >= 0 ? '+' : ''}${fmt(Math.round(r.net))}</td><td>${pb}</td></tr>`;
+        const marker = c === actualDailyCups ? ' ◀实际' : (Math.abs(c - targetCups) <= 2 ? ' ◀目标' : '');
+        thtml += `<tr class="${rc}"><td>${c}杯${marker}</td><td>${fmt(Math.round(r.revenue))}</td><td>${fmt(Math.round(r.matCost))}</td><td>${fmt(Math.round(r.grossProfit))}</td><td>${fmt(Math.round(r.fee))} (${(r.feeRate*100).toFixed(0)}%)</td><td>${fmt(Math.round(fixedMonthly))}</td><td class="${nc}">${r.net >= 0 ? '+' : ''}${fmt(Math.round(r.net))}</td><td>${pb}</td></tr>`;
     });
     $('detailTableBody').innerHTML = thtml;
 
-    // Traffic tab
+    // ========== Traffic Tab（转化率分析基于用户输入的转化率高亮） ==========
     let trafficHTML = `<div style="font-size:12px;line-height:2">
         <table><tr><td>观测: 每10分钟${obsFlow}人 (${slotFactor.toFixed(1)}×基准)</td><td>高峰: <strong>${Math.round(peakHourlyFlow)}</strong> 人/时</td></tr>
         <tr><td>店前溢价 ${premium.toFixed(1)}×</td><td>店前高峰: <strong>${Math.round(storeHourlyFlow)}</strong> 人/时</td></tr></table>
@@ -805,51 +887,61 @@ function calculate() {
     trafficHTML += `<tr style="font-weight:600;border-top:2px solid var(--border)"><td>周日合计</td><td></td><td></td><td>${Math.round(totalSun).toLocaleString()}人</td></tr>
         <tr><td>工作日 (×${wdFactor.toFixed(1)})</td><td></td><td></td><td>${Math.round(weekdayFlow).toLocaleString()}人</td></tr>
         <tr style="font-weight:600"><td>月均日客流</td><td></td><td></td><td>${Math.round(avgDailyFlow).toLocaleString()}人</td></tr></table>
-        <hr class="section-divider"><div style="font-weight:600;margin-bottom:6px;font-size:12px">转化率分析:</div>
-        <table><thead><tr><th>转化率</th><th>冬季淡季</th><th>年均</th><th>夏季旺季</th><th>达标?</th></tr></thead>`;
+        <hr class="section-divider">
+        <div style="font-weight:600;margin-bottom:6px;font-size:12px">当前输入转化率 <strong style="color:var(--accent-blue)">${(conversionRate*100).toFixed(1)}%</strong> → 日均 <strong style="color:var(--accent-blue)">${actualDailyCups}杯</strong></div>
+        <div style="font-weight:600;margin-bottom:6px;font-size:12px">不同转化率对比:</div>
+        <table><thead><tr><th>转化率</th><th>冬季淡季</th><th>年均</th><th>夏季旺季</th><th>目标达标?</th></tr></thead>`;
     [0.5,1.0,1.5,2.0,2.5,3.0,4.0,5.0,6.0,7.0,8.0].forEach(cr => {
         const p = cr/100, w = avgDailyFlow * seasonFactors['冬季(12-2月)'] * p;
         const a = weightedAnnualFlow * p, s = avgDailyFlow * seasonFactors['夏季(6-8月)'] * p;
         const ok = a >= targetCups ? '✅' : '❌';
-        trafficHTML += `<tr><td>${cr.toFixed(1)}%</td><td>${Math.round(w)}杯</td><td>${Math.round(a)}杯</td><td>${Math.round(s)}杯</td><td class="${ok==='✅'?'positive':'negative'}">${ok}</td></tr>`;
+        const isCurrent = Math.abs(cr - conversionRate*100) < 0.01;
+        trafficHTML += `<tr${isCurrent?' style="background:rgba(33,150,243,0.1);font-weight:600"':''}><td>${cr.toFixed(1)}%${isCurrent?' ◀当前':''}</td><td>${Math.round(w)}杯</td><td>${Math.round(a)}杯</td><td>${Math.round(s)}杯</td><td class="${ok==='✅'?'positive':'negative'}">${ok}</td></tr>`;
     });
     trafficHTML += `</table><hr class="section-divider"><div style="font-size:11px;color:var(--text-light)">行业参考: 一般商场咖啡店 0.5%~3% | 核心商圈 2%~5% | 瑞幸/库迪 1.5%~4%</div></div>`;
     $('trafficContent').innerHTML = trafficHTML;
 
-    // Sensitivity
-    const baseNet = targetResult.net;
+    // ========== Sensitivity（基于实际杯量） ==========
+    const baseCups = actualDailyCups > 0 ? actualDailyCups : 1;
+    const baseForSens = computeNet(baseCups);
+    const baseNet = baseForSens.net;
     function sensTest(key, baseVal, direction) {
         const m = direction === 'minus' ? 0.9 : 1.1;
         if (key === 'avgPrice') {
-            const mc = targetCups * daysPerMonth; const rev = mc * baseVal * m; const mat = mc * materialCost;
+            const mc = baseCups * daysPerMonth; const rev = mc * baseVal * m; const mat = mc * materialCost;
             const sf = calcServiceFee(rev, mat, rentMonthly); return rev - mat - sf.fee - fixedMonthly;
         } else if (key === 'cups') { return computeNet(Math.round(baseVal * m)).net;
         } else if (key === 'materialCost') {
-            const mc = targetCups * daysPerMonth; const rev = mc * avgPrice; const mat = mc * baseVal * m;
+            const mc = baseCups * daysPerMonth; const rev = mc * avgPrice; const mat = mc * baseVal * m;
             const sf = calcServiceFee(rev, mat, rentMonthly); return rev - mat - sf.fee - fixedMonthly;
         } else if (key === 'rent') {
-            const nr = baseVal * m; const mc = targetCups * daysPerMonth; const rev = mc * avgPrice; const mat = mc * materialCost;
+            const nr = baseVal * m; const mc = baseCups * daysPerMonth; const rev = mc * avgPrice; const mat = mc * materialCost;
             const sf = calcServiceFee(rev, mat, nr); const nf = fixedMonthly - rentMonthly + nr; return rev - mat - sf.fee - nf;
         } else if (key === 'staffTotal') {
-            const ns = baseVal * m; const mc = targetCups * daysPerMonth; const rev = mc * avgPrice; const mat = mc * materialCost;
+            const ns = baseVal * m; const mc = baseCups * daysPerMonth; const rev = mc * avgPrice; const mat = mc * materialCost;
             const sf = calcServiceFee(rev, mat, rentMonthly); const nf = fixedMonthly - staffTotal + ns; return rev - mat - sf.fee - nf;
+        } else if (key === 'conversionRate') {
+            const newCups = Math.round(weightedAnnualFlow * baseVal * m / 100);
+            return computeNet(newCups > 0 ? newCups : 0).net;
         }
         return 0;
     }
-    let sensHTML = `<div style="font-size:12px;color:var(--text-light);margin-bottom:8px">基准: 日均${targetCups}杯，月净利 <strong>${fmt(Math.round(baseNet))}</strong> 元</div>
+    let sensHTML = `<div style="font-size:12px;color:var(--text-light);margin-bottom:8px">
+        基准: 转化率${(conversionRate*100).toFixed(1)}% → 日均${baseCups}杯，月净利 <strong>${fmt(Math.round(baseNet))}</strong> 元</div>
         <table><thead><tr><th>变量</th><th>-10%</th><th>基准</th><th>+10%</th><th>影响幅度</th></tr></thead>`;
-    [['客单价','avgPrice',avgPrice],['日均杯量','cups',targetCups],['原料成本','materialCost',materialCost],['月租金','rent',rentMonthly],['人工总成本','staffTotal',staffTotal]].forEach(v => {
+    [['客单价','avgPrice',avgPrice],['转化率','conversionRate',conversionRate*100],['原料成本','materialCost',materialCost],['月租金','rent',rentMonthly],['人工总成本','staffTotal',staffTotal]].forEach(v => {
         const mn = sensTest(v[1], v[2], 'minus'), mp = sensTest(v[1], v[2], 'plus');
         sensHTML += `<tr><td>${v[0]}</td><td class="${mn>=0?'positive':'negative'}">${mn>=0?'+':''}${fmt(Math.round(mn))}</td><td>${baseNet>=0?'+':''}${fmt(Math.round(baseNet))}</td><td class="${mp>=0?'positive':'negative'}">${mp>=0?'+':''}${fmt(Math.round(mp))}</td><td><strong>${fmt(Math.round(Math.abs(mp-mn)))}</strong>元</td></tr>`;
     });
-    sensHTML += `</table><hr class="section-divider"><div style="font-size:11px;color:var(--text-light)">💡 客单价和杯量影响最大，开源比节流更重要。</div>`;
+    sensHTML += `</table><hr class="section-divider"><div style="font-size:11px;color:var(--text-light)">💡 客单价和转化率（杯量）对盈利影响最大。</div>`;
     $('sensitivityContent').innerHTML = sensHTML;
 
     // Season
-    let seasHTML = `<div style="font-size:12px;margin-bottom:8px">基准日均客流: ${Math.round(avgDailyFlow).toLocaleString()}人</div>
-        <table><thead><tr><th>季节</th><th>系数</th><th>日均客流</th><th>×${fmt2(convNeeded)}%转化</th><th>月净利估算</th></tr></thead>`;
+    const actualRatePct = conversionRate * 100;
+    let seasHTML = `<div style="font-size:12px;margin-bottom:8px">基准日均客流: ${Math.round(avgDailyFlow).toLocaleString()}人 | 当前转化率: ${actualRatePct.toFixed(1)}%</div>
+        <table><thead><tr><th>季节</th><th>系数</th><th>日均客流</th><th>日均杯量</th><th>月净利估算</th></tr></thead>`;
     seasonKeys.forEach(k => {
-        const f = seasonFactors[k], df = avgDailyFlow * f, cups = df * (convNeeded/100), r = computeNet(cups);
+        const f = seasonFactors[k], df = avgDailyFlow * f, cups = df * conversionRate, r = computeNet(cups);
         seasHTML += `<tr><td>${k}</td><td>${f.toFixed(2)}</td><td>${Math.round(df).toLocaleString()}人</td><td>${fmt1(cups)}杯</td><td class="${r.net>=0?'positive':'negative'}">${r.net>=0?'+':''}${fmt(Math.round(r.net))}元</td></tr>`;
     });
     seasHTML += `</table><hr class="section-divider"><div style="font-size:11px;color:var(--text-light)">⚠️ 内蒙古冬季(12-2月)客流下降约35%，是最大挑战。☀️ 夏季(6-8月)是赚钱窗口期。</div>`;

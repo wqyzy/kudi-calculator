@@ -13,7 +13,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'data.db')
+DB_PATH = os.environ.get('DATABASE_PATH', os.path.join(os.path.dirname(__file__), 'data.db'))
 
 
 def get_db():
