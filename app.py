@@ -15,9 +15,8 @@ app.secret_key = os.urandom(24)
 
 # Determine writable database path
 _DEFAULT_DB = os.path.join(os.getcwd(), 'data.db')
-# Test if we can write to it
 try:
-    with open(_DEFAULT_DB, 'a'): pass
+    with open(_DEFAULT_DB, 'a'): os.remove(_DEFAULT_DB)
     DB_PATH = _DEFAULT_DB
 except (IOError, OSError):
     DB_PATH = os.path.join('/tmp', 'kudi_calculator.db')
@@ -45,6 +44,11 @@ def init_db():
     """)
     conn.commit()
     conn.close()
+
+
+# Initialize database at module load (required for gunicorn)
+init_db()
+print("[startup] Database initialized successfully")
 
 
 def generate_code():
