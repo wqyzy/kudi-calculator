@@ -365,27 +365,36 @@
 
         <div class="card">
             <div class="card-title collapsible-header" onclick="toggleCollapse(this)">
-                💵 营收与成本 <span class="hint">客单价、原料成本、目标</span>
+                💵 营收与成本 <span class="hint">线上线下分开填</span>
                 <span class="icon">▼</span>
             </div>
             <div class="collapsible-body open">
+                <div class="grid-2" style="gap:6px;background:rgba(76,175,80,0.05);border-radius:8px;padding:10px;margin-bottom:8px">
+                    <div style="font-size:12px;font-weight:600;color:var(--accent-green);grid-column:1/-1;margin-bottom:4px">🏪 线下（到店自取）</div>
+                    <div class="form-group"><label>线下客单价（元/杯）</label><input type="number" id="offlinePrice" value="14.0" step="0.5" data-key="offlinePrice"></div>
+                    <div class="form-group"><label>线下原料+包材成本（元/杯）</label><input type="number" id="offlineMaterial" value="6.5" step="0.1" data-key="offlineMaterial"></div>
+                </div>
+                <div class="grid-2" style="gap:6px;background:rgba(33,150,243,0.05);border-radius:8px;padding:10px;margin-bottom:8px">
+                    <div style="font-size:12px;font-weight:600;color:var(--accent-blue);grid-column:1/-1;margin-bottom:4px">📱 线上（外卖平台）</div>
+                    <div class="form-group"><label>线上客单价（扣平台费后到手价）</label><input type="number" id="onlinePrice" value="10.0" step="0.5" data-key="onlinePrice"></div>
+                    <div class="form-group"><label>线上原料+包材成本（元/杯）</label><input type="number" id="onlineMaterial" value="8.0" step="0.1" data-key="onlineMaterial"></div>
+                </div>
                 <div class="grid-2" style="gap:6px">
                     <div class="form-group">
-                        <label>平均客单价（元/杯）</label>
-                        <input type="number" id="avgPrice" value="12.5" step="0.5" data-key="avgPrice">
+                        <label>📊 线上订单占比（%）</label>
+                        <div class="input-row">
+                            <input type="number" id="onlineRatio" value="40" min="0" max="100" step="5" data-key="onlineRatio" style="border-color:var(--accent-blue)">
+                            <span class="unit">%</span>
+                        </div>
+                        <div style="font-size:11px;color:#666;margin-top:2px">参考：库迪线上通常占30%~50%</div>
                     </div>
-                    <div class="form-group">
-                        <label>原料+包材成本（元/杯）</label>
-                        <input type="number" id="materialCost" value="7.0" step="0.1" data-key="materialCost">
-                    </div>
-                    <div class="form-group">
-                        <label>目标回本周期（月）</label>
+                    <div class="form-group"><label>目标回本周期（月）</label>
                         <input type="number" id="targetPayback" value="18" min="6" max="60" step="1" data-key="targetPayback">
                     </div>
-                    <div class="form-group">
-                        <label>每日营业时长（小时）</label>
-                        <input type="number" id="opHours" value="12" min="8" max="16" step="1" data-key="opHours">
-                    </div>
+                </div>
+                <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:6px;font-size:12px;color:var(--text-light)">
+                    综合：线下<strong id="dOfflinePct" style="color:var(--accent-green)">60</strong>% + 线上<strong id="dOnlinePct" style="color:var(--accent-blue)">40</strong>%
+                    → 综合客单价 <strong id="dBlendedPrice" style="color:#fff">--</strong> 元 | 综合毛利率 <strong id="dBlendedMargin" style="color:var(--accent-yellow)">--</strong>
                 </div>
             </div>
         </div>
@@ -693,9 +702,22 @@ function calculate() {
     const salaryManager = val('salaryManager'), salaryStaff = val('salaryStaff');
     const staffCount = val('staffCount'), utilities = val('utilities');
     const miscCost = val('miscCost'), daysPerMonth = val('daysPerMonth');
-    const avgPrice = val('avgPrice'), materialCost = val('materialCost');
+    // 线上线下分开
+    const offlinePrice = val('offlinePrice'), offlineMaterial = val('offlineMaterial');
+    const onlinePrice = val('onlinePrice'), onlineMaterial = val('onlineMaterial');
+    const onlineRatio = val('onlineRatio') / 100;
+    const offlineRatio = 1 - onlineRatio;
+    // 加权平均
+    const avgPrice = offlinePrice * offlineRatio + onlinePrice * onlineRatio;
+    const materialCost = offlineMaterial * offlineRatio + onlineMaterial * onlineRatio;
     const targetPayback = val('targetPayback'), opHours = val('opHours');
     const conversionRate = val('conversionRate') / 100; // 用户输入的转化率
+
+    // 显示加权信息
+    $('dOfflinePct').textContent = Math.round(offlineRatio * 100);
+    $('dOnlinePct').textContent = Math.round(onlineRatio * 100);
+    $('dBlendedPrice').textContent = fmt2(avgPrice);
+    $('dBlendedMargin').textContent = fmt2((avgPrice - materialCost) / avgPrice * 100) + '%';
 
     // ========== INVESTMENT SUMMARY ==========
     const sunk = equipment + cabinetSign + renovation + designFee + firstBatch + licenseMisc;
@@ -907,29 +929,42 @@ function calculate() {
     const baseNet = baseForSens.net;
     function sensTest(key, baseVal, direction) {
         const m = direction === 'minus' ? 0.9 : 1.1;
-        if (key === 'avgPrice') {
-            const mc = baseCups * daysPerMonth; const rev = mc * baseVal * m; const mat = mc * materialCost;
-            const sf = calcServiceFee(rev, mat, rentMonthly); return rev - mat - sf.fee - fixedMonthly;
-        } else if (key === 'cups') { return computeNet(Math.round(baseVal * m)).net;
-        } else if (key === 'materialCost') {
-            const mc = baseCups * daysPerMonth; const rev = mc * avgPrice; const mat = mc * baseVal * m;
-            const sf = calcServiceFee(rev, mat, rentMonthly); return rev - mat - sf.fee - fixedMonthly;
-        } else if (key === 'rent') {
-            const nr = baseVal * m; const mc = baseCups * daysPerMonth; const rev = mc * avgPrice; const mat = mc * materialCost;
-            const sf = calcServiceFee(rev, mat, nr); const nf = fixedMonthly - rentMonthly + nr; return rev - mat - sf.fee - nf;
+        let newAvgPrice = avgPrice, newMatCost = materialCost;
+        if (key === 'offlinePrice') {
+            newAvgPrice = (baseVal * m) * offlineRatio + onlinePrice * onlineRatio;
+        } else if (key === 'onlinePrice') {
+            newAvgPrice = offlinePrice * offlineRatio + (baseVal * m) * onlineRatio;
+        } else if (key === 'offlineMaterial') {
+            newMatCost = (baseVal * m) * offlineRatio + onlineMaterial * onlineRatio;
+        } else if (key === 'onlineMaterial') {
+            newMatCost = offlineMaterial * offlineRatio + (baseVal * m) * onlineRatio;
+        } else if (key === 'onlineRatio') {
+            const nr = (baseVal * m) / 100;
+            newAvgPrice = offlinePrice * (1 - nr) + onlinePrice * nr;
+            newMatCost = offlineMaterial * (1 - nr) + onlineMaterial * nr;
+        }
+        if (key === 'cups') { return computeNet(Math.round(baseVal * m)).net; }
+        else if (key === 'rent') {
+            const nr = baseVal * m; const nf = fixedMonthly - rentMonthly + nr;
+            const mc = baseCups * daysPerMonth; const rev = mc * newAvgPrice; const mat = mc * newMatCost;
+            const sf = calcServiceFee(rev, mat, nr); return rev - mat - sf.fee - nf;
         } else if (key === 'staffTotal') {
-            const ns = baseVal * m; const mc = baseCups * daysPerMonth; const rev = mc * avgPrice; const mat = mc * materialCost;
-            const sf = calcServiceFee(rev, mat, rentMonthly); const nf = fixedMonthly - staffTotal + ns; return rev - mat - sf.fee - nf;
+            const ns = baseVal * m; const nf = fixedMonthly - staffTotal + ns;
+            const mc = baseCups * daysPerMonth; const rev = mc * newAvgPrice; const mat = mc * newMatCost;
+            const sf = calcServiceFee(rev, mat, rentMonthly); return rev - mat - sf.fee - nf;
         } else if (key === 'conversionRate') {
             const newCups = Math.round(weightedAnnualFlow * baseVal * m / 100);
             return computeNet(newCups > 0 ? newCups : 0).net;
+        } else {
+            const mc = baseCups * daysPerMonth; const rev = mc * newAvgPrice; const mat = mc * newMatCost;
+            const sf = calcServiceFee(rev, mat, rentMonthly); return rev - mat - sf.fee - fixedMonthly;
         }
-        return 0;
     }
     let sensHTML = `<div style="font-size:12px;color:var(--text-light);margin-bottom:8px">
         基准: 转化率${(conversionRate*100).toFixed(1)}% → 日均${baseCups}杯，月净利 <strong>${fmt(Math.round(baseNet))}</strong> 元</div>
+        <div style="font-size:11px;color:var(--text-light);margin-bottom:6px">线下 ${Math.round(offlineRatio*100)}% / 线上 ${Math.round(onlineRatio*100)}% | 综合客单价 ${fmt2(avgPrice)}元 / 综合毛利 ${fmt2((avgPrice-materialCost)/avgPrice*100)}%</div>
         <table><thead><tr><th>变量</th><th>-10%</th><th>基准</th><th>+10%</th><th>影响幅度</th></tr></thead>`;
-    [['客单价','avgPrice',avgPrice],['转化率','conversionRate',conversionRate*100],['原料成本','materialCost',materialCost],['月租金','rent',rentMonthly],['人工总成本','staffTotal',staffTotal]].forEach(v => {
+    [['线下客单价','offlinePrice',offlinePrice],['线上客单价','onlinePrice',onlinePrice],['线上占比','onlineRatio',onlineRatio*100],['转化率','conversionRate',conversionRate*100],['线下原料成本','offlineMaterial',offlineMaterial],['线上原料成本','onlineMaterial',onlineMaterial],['月租金','rent',rentMonthly],['人工总成本','staffTotal',staffTotal]].forEach(v => {
         const mn = sensTest(v[1], v[2], 'minus'), mp = sensTest(v[1], v[2], 'plus');
         sensHTML += `<tr><td>${v[0]}</td><td class="${mn>=0?'positive':'negative'}">${mn>=0?'+':''}${fmt(Math.round(mn))}</td><td>${baseNet>=0?'+':''}${fmt(Math.round(baseNet))}</td><td class="${mp>=0?'positive':'negative'}">${mp>=0?'+':''}${fmt(Math.round(mp))}</td><td><strong>${fmt(Math.round(Math.abs(mp-mn)))}</strong>元</td></tr>`;
     });
