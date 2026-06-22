@@ -161,10 +161,10 @@
             <div style="font-size:11px;color:var(--text-light);margin-bottom:6px">服务费: (月毛利 − 月房租 − <span id="feeOffsetLabel">10,000</span>) × 阶梯%</div>
             <div class="grid-4" style="gap:5px;font-size:11px">
                 <div class="form-group"><label>免抽基数</label><input type="number" id="feeBaseDeduct" value="10000" step="1000" data-key="feeBaseDeduct"></div>
-                <div class="form-group"><label>档1上限/率</label><div class="input-row"><input type="number" id="feeTier1" value="10000" step="1000" style="flex:2" data-key="feeTier1"><input type="number" id="feeRate1" value="5" min="0" max="100" step="1" style="flex:1" data-key="feeRate1"><span class="unit">%</span></div></div>
-                <div class="form-group"><label>档2上限/率</label><div class="input-row"><input type="number" id="feeTier2" value="20000" step="1000" style="flex:2" data-key="feeTier2"><input type="number" id="feeRate2" value="10" min="0" max="100" step="1" style="flex:1" data-key="feeRate2"><span class="unit">%</span></div></div>
-                <div class="form-group"><label>档3上限/率</label><div class="input-row"><input type="number" id="feeTier3" value="30000" step="1000" style="flex:2" data-key="feeTier3"><input type="number" id="feeRate3" value="15" min="0" max="100" step="1" style="flex:1" data-key="feeRate3"><span class="unit">%</span></div></div>
-                <div class="form-group"><label>档4上限/率</label><div class="input-row"><input type="number" id="feeTier4" value="40000" step="1000" style="flex:2" data-key="feeTier4"><input type="number" id="feeRate4" value="20" min="0" max="100" step="1" style="flex:1" data-key="feeRate4"><span class="unit">%</span></div></div>
+                <div class="form-group"><label>档1上限/率</label><div class="input-row"><input type="number" id="feeTier1" value="5000" step="1000" style="flex:2" data-key="feeTier1"><input type="number" id="feeRate1" value="5" min="0" max="100" step="1" style="flex:1" data-key="feeRate1"><span class="unit">%</span></div></div>
+                <div class="form-group"><label>档2上限/率</label><div class="input-row"><input type="number" id="feeTier2" value="10000" step="1000" style="flex:2" data-key="feeTier2"><input type="number" id="feeRate2" value="10" min="0" max="100" step="1" style="flex:1" data-key="feeRate2"><span class="unit">%</span></div></div>
+                <div class="form-group"><label>档3上限/率</label><div class="input-row"><input type="number" id="feeTier3" value="15000" step="1000" style="flex:2" data-key="feeTier3"><input type="number" id="feeRate3" value="15" min="0" max="100" step="1" style="flex:1" data-key="feeRate3"><span class="unit">%</span></div></div>
+                <div class="form-group"><label>档4上限/率</label><div class="input-row"><input type="number" id="feeTier4" value="20000" step="1000" style="flex:2" data-key="feeTier4"><input type="number" id="feeRate4" value="20" min="0" max="100" step="1" style="flex:1" data-key="feeRate4"><span class="unit">%</span></div></div>
                 <div class="form-group"><label>档5(以上)率</label><div class="input-row"><input type="number" id="feeRate5" value="25" min="0" max="100" step="1" data-key="feeRate5"><span class="unit">%</span></div></div>
             </div>
         </div>
@@ -255,24 +255,31 @@ function fmt(n) { return Number(n).toLocaleString('zh-CN', {minimumFractionDigit
 function fmt1(n) { return Number(n).toLocaleString('zh-CN', {minimumFractionDigits:1, maximumFractionDigits:1}); }
 function fmt2(n) { return Number(n).toLocaleString('zh-CN', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 
+function calcProgressiveFee(gp, rent) {
+    var base = gp - rent - val('feeBaseDeduct');
+    if (base <= 0) return 0;
+    var t1=val('feeTier1'),t2=val('feeTier2'),t3=val('feeTier3'),t4=val('feeTier4');
+    var r1=val('feeRate1')/100,r2=val('feeRate2')/100,r3=val('feeRate3')/100,r4=val('feeRate4')/100,r5=val('feeRate5')/100;
+    var remaining = base, fee = 0, prev = 0;
+    var brackets = [{limit:t1,rate:r1},{limit:t2,rate:r2},{limit:t3,rate:r3},{limit:t4,rate:r4}];
+    for (var i = 0; i < brackets.length; i++) {
+        var size = brackets[i].limit - prev;
+        var amt = Math.min(remaining, size);
+        fee += amt * brackets[i].rate;
+        remaining -= amt;
+        prev = brackets[i].limit;
+        if (remaining <= 0) break;
+    }
+    if (remaining > 0) fee += remaining * r5;
+    return fee;
+}
+
 function calcServiceFee(revenue, materialCost, rent) {
     var gp = revenue - materialCost;
+    var fee = calcProgressiveFee(gp, rent);
     var base = gp - rent - val('feeBaseDeduct');
-    var tiers = [
-        { limit: val('feeTier1'), rate: val('feeRate1')/100 },
-        { limit: val('feeTier2'), rate: val('feeRate2')/100 },
-        { limit: val('feeTier3'), rate: val('feeRate3')/100 },
-        { limit: val('feeTier4'), rate: val('feeRate4')/100 },
-    ];
-    var maxRate = val('feeRate5')/100;
-    var rate = 0;
-    if (base <= 0) rate = 0;
-    else if (base <= tiers[0].limit) rate = tiers[0].rate;
-    else if (base <= tiers[1].limit) rate = tiers[1].rate;
-    else if (base <= tiers[2].limit) rate = tiers[2].rate;
-    else if (base <= tiers[3].limit) rate = tiers[3].rate;
-    else rate = maxRate;
-    return { fee: base > 0 ? base * rate : 0, rate: rate, grossProfit: gp };
+    var effectiveRate = base > 0 ? fee / base : 0;
+    return { fee: fee, rate: effectiveRate, grossProfit: gp };
 }
 
 function loadDataFromServer() {
@@ -403,14 +410,7 @@ function calculate() {
 
     function findBreakEvenGP() {
         for (var gp = 0; gp <= 500000; gp += 100) {
-            var base = gp - rentMonthly - val('feeBaseDeduct');
-            var rate = 0;
-            if (base > 0) {
-                var t1=val('feeTier1'),t2=val('feeTier2'),t3=val('feeTier3'),t4=val('feeTier4');
-                var r1=val('feeRate1')/100,r2=val('feeRate2')/100,r3=val('feeRate3')/100,r4=val('feeRate4')/100,r5=val('feeRate5')/100;
-                if (base <= t1) rate=r1; else if (base <= t2) rate=r2; else if (base <= t3) rate=r3; else if (base <= t4) rate=r4; else rate=r5;
-            }
-            var fee = base > 0 ? base * rate : 0;
+            var fee = calcProgressiveFee(gp, rentMonthly);
             if (gp - fee >= fixedMonthly) return gp;
         }
         return 0;
