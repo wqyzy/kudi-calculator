@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>库迪咖啡 · 财务计算器</title>
+<style>
+    :root {
+        --primary: #8B4513; --primary-light: #A0522D;
+        --bg: #1a1a2e; --card-bg: #16213e; --card-alt: #1c2a4a;
+        --text: #e0e0e0; --text-light: #a0a0b0;
+        --accent-green: #4CAF50; --accent-red: #f44336;
+        --accent-yellow: #ff9800; --accent-blue: #2196F3;
+        --border: #2a3a5a;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 16px; }
+    .container { max-width: 1500px; margin: 0 auto; }
+    .header { background: linear-gradient(135deg, #4a1a00 0%, #8B4513 50%, #2a1a0a 100%); padding: 24px 32px; border-radius: 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .header h1 { font-size: 24px; color: #fff; }
+    .header .badge { background: rgba(255,255,255,0.15); padding: 6px 14px; border-radius: 8px; font-size: 13px; color: #d4a06a; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
+    @media (max-width: 1024px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+    .card-title { font-size: 15px; font-weight: 600; color: #d4a06a; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    .form-group { margin-bottom: 10px; }
+    .form-group label { display: block; font-size: 12px; color: var(--text-light); margin-bottom: 3px; }
+    .input-row { display: flex; align-items: center; gap: 6px; }
+    .input-row input { flex: 1; }
+    .input-row .unit { font-size: 12px; color: var(--text-light); min-width: 24px; }
+    input { width: 100%; padding: 7px 10px; background: #0d1b3a; border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 13px; transition: border-color 0.2s; }
+    input:focus { outline: none; border-color: var(--primary-light); }
+    input[type="number"] { -moz-appearance: textfield; }
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .result-card { background: linear-gradient(135deg, #1a2a1a 0%, #16213e 100%); border: 1px solid #2a4a2a; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+    .stat-box { background: rgba(255,255,255,0.03); border-radius: 8px; padding: 10px; text-align: center; }
+    .stat-box .value { font-size: 20px; font-weight: 700; }
+    .stat-box .label { font-size: 11px; color: var(--text-light); margin-top: 3px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { background: #0d1b3a; color: var(--text-light); padding: 6px 8px; text-align: right; font-weight: 500; border-bottom: 2px solid var(--border); }
+    th:first-child { text-align: left; }
+    td { padding: 5px 8px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    td:first-child { text-align: left; }
+    tr:hover td { background: rgba(255,255,255,0.03); }
+    tr.highlight-row td { background: rgba(76,175,80,0.1); font-weight: 600; }
+    td.positive { color: var(--accent-green); }
+    td.negative { color: var(--accent-red); }
+    .table-wrap { overflow-x: auto; }
+    .table-wrap table { min-width: 550px; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
+    .tab-btn { padding: 6px 14px; background: #0d1b3a; border: 1px solid var(--border); border-radius: 6px; color: var(--text-light); cursor: pointer; font-size: 12px; transition: all 0.2s; }
+    .tab-btn:hover { background: #1a2a5a; }
+    .tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary-light); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .tag.green { background: rgba(76,175,80,0.2); color: var(--accent-green); }
+    .tag.yellow { background: rgba(255,152,0,0.2); color: var(--accent-yellow); }
+    .tag.red { background: rgba(244,67,54,0.2); color: var(--accent-red); }
+    .tag.blue { background: rgba(33,150,243,0.2); color: var(--accent-blue); }
+    .section-divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+    <div>
+        <h1>☕ 库迪咖啡 · 财务计算器</h1>
+        <div style="font-size:12px;color:#d4a06a;margin-top:2px">线上线下分开 · 正向+反算 · 即改即得</div>
+    </div>
+    <div class="badge">本地版 v3</div>
+</div>
+
+<!-- Summary Bar -->
+<div class="result-card">
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <span class="tag blue" style="font-size:12px">▶ 正向（基于输入转化率）</span>
+        <span class="tag yellow" style="font-size:12px">◀ 反算（基于目标回本周期）</span>
+    </div>
+    <div class="stat-grid">
+        <div class="stat-box"><div class="value" id="sActualCups" style="color:var(--accent-blue)">--</div><div class="label">☕ 实际日均杯量</div></div>
+        <div class="stat-box"><div class="value" id="sActualNetProfit" style="color:var(--accent-green)">--</div><div class="label">📈 实际月净利</div></div>
+        <div class="stat-box"><div class="value" id="sActualPayback" style="color:var(--accent-yellow)">--</div><div class="label">⏱ 实际回本周期</div></div>
+        <div class="stat-box"><div class="value" id="sBreakEvenGP" style="color:var(--accent-yellow)">--</div><div class="label">⚖️ 盈亏平衡月毛利</div></div>
+        <div class="stat-box"><div class="value" id="sTargetNetProfit" style="color:var(--accent-blue)">--</div><div class="label">🎯 目标回本需月净利</div></div>
+        <div class="stat-box"><div class="value" id="sVerdict" style="font-size:18px">--</div><div class="label">📊 综合判断</div></div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <div>
+
+        <!-- 初始投资 -->
+        <div class="card">
+            <div class="card-title">💰 初始投资</div>
+            <div class="grid-2" style="gap:6px">
+                <div class="form-group"><label>设备费（元）</label><input type="number" id="equipment" value="120000" step="1000"></div>
+                <div class="form-group"><label>柜体广告费（元）</label><input type="number" id="cabinetSign" value="30000" step="1000"></div>
+                <div class="form-group"><label>基础装修（元）</label><input type="number" id="renovation" value="20000" step="1000"></div>
+                <div class="form-group"><label>设计费（元）</label><input type="number" id="designFee" value="2000" step="500"></div>
+                <div class="form-group"><label>首批物料（元）</label><input type="number" id="firstBatch" value="25000" step="1000"></div>
+                <div class="form-group"><label>证照杂费（元）</label><input type="number" id="licenseMisc" value="5000" step="1000"></div>
+                <div class="form-group"><label>履约保证金（可退，元）</label><input type="number" id="deposit" value="50000" step="1000"></div>
+                <div class="form-group"><label>流动资金（元）</label><input type="number" id="workingCapital" value="30000" step="1000"></div>
+            </div>
+            <div style="margin-top:6px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;color:var(--text-light)">
+                净投入(不可退): <strong id="iSunk" style="color:#fff">--</strong> 元 &nbsp;|&nbsp; 总需准备: <strong id="iTotal" style="color:#fff">--</strong> 元
+            </div>
+        </div>
+
+        <!-- 月度固定成本 -->
+        <div class="card">
+            <div class="card-title">📆 月度固定成本</div>
+            <div class="grid-2" style="gap:6px">
+                <div class="form-group"><label>年租金（元）</label><input type="number" id="annualRent" value="190000" step="1000"></div>
+                <div class="form-group"><label>店长月薪（元）</label><input type="number" id="salaryManager" value="4500" step="100"></div>
+                <div class="form-group"><label>店员月薪 × 人数</label><div class="input-row"><input type="number" id="salaryStaff" value="3500" step="100" style="flex:2"><span style="color:var(--text-light)">×</span><input type="number" id="staffCount" value="2" min="0" step="1" style="flex:1"><span class="unit">人</span></div></div>
+                <div class="form-group"><label>水电费（元/月，年均）</label><input type="number" id="utilities" value="2000" step="100"></div>
+                <div class="form-group"><label>杂费（元/月）</label><input type="number" id="miscCost" value="1000" step="100"></div>
+                <div class="form-group"><label>月营业天数</label><input type="number" id="daysPerMonth" value="30" min="26" max="31" step="1"></div>
+            </div>
+            <div style="margin-top:6px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;color:var(--text-light)">
+                月固定成本合计: <strong id="fTotal" style="color:#fff">--</strong> 元
+            </div>
+        </div>
+
+        <!-- 营收与成本 -->
+        <div class="card">
+            <div class="card-title">💵 营收与成本（线上线下分开）</div>
+            <div class="grid-2" style="gap:6px;background:rgba(76,175,80,0.05);border-radius:8px;padding:10px;margin-bottom:8px">
+                <div style="font-size:12px;font-weight:600;color:var(--accent-green);grid-column:1/-1;margin-bottom:4px">🏪 线下（到店自取）</div>
+                <div class="form-group"><label>线下客单价（元/杯）</label><input type="number" id="offlinePrice" value="14.0" step="0.5"></div>
+                <div class="form-group"><label>线下原料+包材成本（元/杯）</label><input type="number" id="offlineMaterial" value="6.5" step="0.1"></div>
+            </div>
+            <div class="grid-2" style="gap:6px;background:rgba(33,150,243,0.05);border-radius:8px;padding:10px;margin-bottom:8px">
+                <div style="font-size:12px;font-weight:600;color:var(--accent-blue);grid-column:1/-1;margin-bottom:4px">📱 线上（外卖平台）</div>
+                <div class="form-group"><label>线上到手价（元/杯，扣平台费后）</label><input type="number" id="onlinePrice" value="10.0" step="0.5"></div>
+                <div class="form-group"><label>线上原料+包材成本（元/杯）</label><input type="number" id="onlineMaterial" value="8.0" step="0.1"></div>
+            </div>
+            <div class="grid-2" style="gap:6px">
+                <div class="form-group">
+                    <label>📊 线上订单占比（%）</label>
+                    <div class="input-row">
+                        <input type="number" id="onlineRatio" value="40" min="0" max="100" step="5" style="border-color:var(--accent-blue)">
+                        <span class="unit">%</span>
+                    </div>
+                    <div style="font-size:11px;color:#666;margin-top:2px">参考：库迪线上通常占30%~50%，按你实际填</div>
+                </div>
+                <div class="form-group"><label>目标回本周期（月）</label><input type="number" id="targetPayback" value="18" min="6" max="60" step="1"></div>
+            </div>
+            <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:6px;font-size:12px;color:var(--text-light)">综合加权：
+                线下 <strong id="dOfflinePct" style="color:var(--accent-green)">--</strong>%
+                + 线上 <strong id="dOnlinePct" style="color:var(--accent-blue)">--</strong>%
+                → 综合客单价 <strong id="dBlendedPrice" style="color:#fff">--</strong> 元
+                | 综合毛利率 <strong id="dBlendedMargin" style="color:var(--accent-yellow)">--</strong>
+            </div>
+            <hr class="section-divider">
+            <div style="font-size:11px;color:var(--text-light);margin-bottom:6px">服务费: (月毛利 − 月房租 − <span id="feeOffsetLabel">10,000</span>) × 阶梯%</div>
+            <div class="grid-4" style="gap:5px;font-size:11px">
+                <div class="form-group"><label>免抽基数</label><input type="number" id="feeBaseDeduct" value="10000" step="1000"></div>
+                <div class="form-group"><label>档1上限/率</label><div class="input-row"><input type="number" id="feeTier1" value="10000" step="1000" style="flex:2"><input type="number" id="feeRate1" value="5" min="0" max="100" step="1" style="flex:1"><span class="unit">%</span></div></div>
+                <div class="form-group"><label>档2上限/率</label><div class="input-row"><input type="number" id="feeTier2" value="20000" step="1000" style="flex:2"><input type="number" id="feeRate2" value="10" min="0" max="100" step="1" style="flex:1"><span class="unit">%</span></div></div>
+                <div class="form-group"><label>档3上限/率</label><div class="input-row"><input type="number" id="feeTier3" value="30000" step="1000" style="flex:2"><input type="number" id="feeRate3" value="15" min="0" max="100" step="1" style="flex:1"><span class="unit">%</span></div></div>
+                <div class="form-group"><label>档4上限/率</label><div class="input-row"><input type="number" id="feeTier4" value="40000" step="1000" style="flex:2"><input type="number" id="feeRate4" value="20" min="0" max="100" step="1" style="flex:1"><span class="unit">%</span></div></div>
+                <div class="form-group"><label>档5(以上)率</label><div class="input-row"><input type="number" id="feeRate5" value="25" min="0" max="100" step="1"><span class="unit">%</span></div></div>
+            </div>
+        </div>
+
+        <!-- 客流量 -->
+        <div class="card">
+            <div class="card-title">🚶 客流量参数 + 转化率</div>
+            <div class="grid-2" style="gap:6px">
+                <div class="form-group"><label>观测每10分钟人流（人）</label><input type="number" id="trafficObs" value="100" step="10"></div>
+                <div class="form-group"><label>观测时段系数（14点=1.0）</label><input type="number" id="trafficSlotFactor" value="1.0" step="0.1"></div>
+                <div class="form-group"><label>店铺位置溢价（倍数）</label><input type="number" id="trafficPremium" value="1.2" step="0.05"></div>
+                <div class="form-group"><label>工作日系数（周日=1.0）</label><input type="number" id="weekdayFactor" value="0.6" step="0.05"></div>
+            </div>
+            <div style="margin-top:6px;font-size:11px;color:var(--text-light)">分时段系数:</div>
+            <div class="grid-4" style="margin-top:3px;gap:5px">
+                <div class="form-group"><label>10-12点</label><input type="number" id="slot1" value="0.5" step="0.05"></div>
+                <div class="form-group"><label>12-14点</label><input type="number" id="slot2" value="0.8" step="0.05"></div>
+                <div class="form-group"><label>14-17点</label><input type="number" id="slot3" value="1.0" step="0.05"></div>
+                <div class="form-group"><label>17-19点</label><input type="number" id="slot4" value="0.9" step="0.05"></div>
+                <div class="form-group"><label>19-22点</label><input type="number" id="slot5" value="0.6" step="0.05"></div>
+            </div>
+            <div style="margin-top:6px;font-size:11px;color:var(--text-light)">季节性系数（内蒙古）:</div>
+            <div class="grid-4" style="margin-top:3px;gap:5px">
+                <div class="form-group"><label>春季</label><input type="number" id="seasonSpring" value="0.85" step="0.05"></div>
+                <div class="form-group"><label>夏季</label><input type="number" id="seasonSummer" value="1.15" step="0.05"></div>
+                <div class="form-group"><label>秋季</label><input type="number" id="seasonFall" value="0.90" step="0.05"></div>
+                <div class="form-group"><label>冬季</label><input type="number" id="seasonWinter" value="0.65" step="0.05"></div>
+            </div>
+            <hr class="section-divider">
+            <div class="form-group">
+                <label>🎯 客流转化率（核心输入）</label>
+                <div class="input-row">
+                    <input type="number" id="conversionRate" value="3.0" step="0.1" min="0" max="30" style="font-size:16px;font-weight:700;padding:10px 12px;border-color:var(--accent-blue)">
+                    <span class="unit" style="font-size:14px;font-weight:600">%</span>
+                </div>
+                <div style="font-size:11px;color:#666;margin-top:2px">行业参考：普通商场1~3% | 核心商圈2~5% | 优质点位3~6%</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- RIGHT: Results -->
+    <div>
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="tabOverview">📊 总览</button>
+            <button class="tab-btn" data-tab="tabDetail">📋 盈亏表</button>
+            <button class="tab-btn" data-tab="tabTraffic">🚶 客流分析</button>
+            <button class="tab-btn" data-tab="tabSensitivity">📈 敏感性</button>
+            <button class="tab-btn" data-tab="tabSeason">🌤 季节性</button>
+        </div>
+
+        <div class="tab-content active" id="tabOverview">
+            <div class="result-card">
+                <div class="stat-grid" style="grid-template-columns:1fr 1fr">
+                    <div class="stat-box"><div class="value" id="oBreakEven" style="color:var(--accent-yellow)">--</div><div class="label">⚖️ 盈亏平衡月毛利（反算）</div></div>
+                    <div class="stat-box"><div class="value" id="oTargetCups" style="color:var(--accent-blue)">--</div><div class="label">🎯 目标回本需月净利（反算）</div></div>
+                    <div class="stat-box"><div class="value" id="oMonthlyProfit" style="color:var(--accent-green)">--</div><div class="label">💰 实际月净利（正向）</div></div>
+                    <div class="stat-box"><div class="value" id="oPaybackMonths" style="color:var(--accent-yellow)">--</div><div class="label">⏱ 实际回本周期（正向）</div></div>
+                </div>
+                <hr class="section-divider">
+                <div id="overviewVerdict"></div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tabDetail">
+            <div class="card"><div class="card-title">☕ 不同日均杯量 → 月盈利</div>
+                <div class="table-wrap"><table><thead><tr><th>日均杯量</th><th>月营收</th><th>原料成本</th><th>月毛利</th><th>服务费</th><th>固定成本</th><th>月净利</th><th>回本周期</th></tr></thead><tbody id="detailTableBody"></tbody></table></div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tabTraffic"><div class="card"><div class="card-title">🚶 客流转化分析</div><div id="trafficContent"></div></div></div>
+        <div class="tab-content" id="tabSensitivity"><div class="card"><div class="card-title">📈 敏感性分析</div><div id="sensitivityContent"></div></div></div>
+        <div class="tab-content" id="tabSeason"><div class="card"><div class="card-title">🌤 季节性分析</div><div id="seasonContent"></div></div></div>
+    </div>
+</div>
+
+<div style="text-align:center;padding:20px;color:#555;font-size:12px">所有参数均可修改 · 修改后自动重新计算</div>
+</div>
+
+<script>
+// ====== Helpers ======
+function $(id) { return document.getElementById(id); }
+function val(id) { return parseFloat($(id).value) || 0; }
+function fmt(n) { return Number(n).toLocaleString('zh-CN', {minimumFractionDigits:0, maximumFractionDigits:0}); }
+function fmt1(n) { return Number(n).toLocaleString('zh-CN', {minimumFractionDigits:1, maximumFractionDigits:1}); }
+function fmt2(n) { return Number(n).toLocaleString('zh-CN', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+// ====== Service Fee ======
+// ====== 阶梯服务费计算（累进税率式） ======
+function calcProgressiveFee(gp, rent) {
+    var base = gp - rent - val('feeBaseDeduct');
+    if (base <= 0) return 0;
+    var t1=val('feeTier1'),t2=val('feeTier2'),t3=val('feeTier3'),t4=val('feeTier4');
+    var r1=val('feeRate1')/100,r2=val('feeRate2')/100,r3=val('feeRate3')/100,r4=val('feeRate4')/100,r5=val('feeRate5')/100;
+    var remaining = base, fee = 0, prev = 0;
+    var brackets = [{limit:t1,rate:r1},{limit:t2,rate:r2},{limit:t3,rate:r3},{limit:t4,rate:r4}];
+    for (var i = 0; i < brackets.length; i++) {
+        var size = brackets[i].limit - prev;
+        var amt = Math.min(remaining, size);
+        fee += amt * brackets[i].rate;
+        remaining -= amt;
+        prev = brackets[i].limit;
+        if (remaining <= 0) break;
+    }
+    if (remaining > 0) fee += remaining * r5;
+    return fee;
+}
+
+function calcServiceFee(revenue, materialCost, rent) {
+    var gp = revenue - materialCost;
+    var fee = calcProgressiveFee(gp, rent);
+    var base = gp - rent - val('feeBaseDeduct');
+    var effectiveRate = base > 0 ? fee / base : 0;
+    return { fee: fee, rate: effectiveRate, grossProfit: gp };
+}
+
+// ====== Main Calculate ======
+function calculate() {
+    // Read all inputs
+    var equipment = val('equipment'), cabinetSign = val('cabinetSign');
+    var renovation = val('renovation'), designFee = val('designFee');
+    var firstBatch = val('firstBatch'), licenseMisc = val('licenseMisc');
+    var deposit = val('deposit'), workingCapital = val('workingCapital');
+    var annualRent = val('annualRent'), rentMonthly = annualRent / 12;
+    var salaryManager = val('salaryManager'), salaryStaff = val('salaryStaff');
+    var staffCount = val('staffCount'), utilities = val('utilities');
+    var miscCost = val('miscCost'), daysPerMonth = val('daysPerMonth');
+
+    // 线上线下分开
+    var offlinePrice = val('offlinePrice');
+    var offlineMaterial = val('offlineMaterial');
+    var onlinePrice = val('onlinePrice');
+    var onlineMaterial = val('onlineMaterial');
+    var onlineRatio = val('onlineRatio') / 100;
+    var offlineRatio = 1 - onlineRatio;
+    var avgPrice = offlinePrice * offlineRatio + onlinePrice * onlineRatio;
+    var materialCost = offlineMaterial * offlineRatio + onlineMaterial * onlineRatio;
+
+    var targetPayback = val('targetPayback');
+    var conversionRate = val('conversionRate') / 100;
+
+    // Investment
+    var sunk = equipment + cabinetSign + renovation + designFee + firstBatch + licenseMisc;
+    var totalNeeded = sunk + deposit + workingCapital;
+    $('iSunk').textContent = fmt(sunk);
+    $('iTotal').textContent = fmt(totalNeeded);
+
+    // Fixed costs
+    var staffTotal = salaryManager + salaryStaff * staffCount;
+    var fixedMonthly = rentMonthly + staffTotal + utilities + miscCost;
+    $('fTotal').textContent = fmt(Math.round(fixedMonthly));
+
+    // Display blended info
+    $('dOfflinePct').textContent = Math.round(offlineRatio * 100);
+    $('dOnlinePct').textContent = Math.round(onlineRatio * 100);
+    $('dBlendedPrice').textContent = fmt2(avgPrice);
+    $('dBlendedMargin').textContent = fmt2((avgPrice - materialCost) / avgPrice * 100) + '%';
+
+    // Core compute
+    function computeNet(cupsPerDay) {
+        var mc = cupsPerDay * daysPerMonth;
+        var rev = mc * avgPrice;
+        var mat = mc * materialCost;
+        var sf = calcServiceFee(rev, mat, rentMonthly);
+        var net = rev - mat - sf.fee - fixedMonthly;
+        return { revenue: rev, matCost: mat, grossProfit: sf.grossProfit, fee: sf.fee, feeRate: sf.rate, net: net, monthlyCups: mc };
+    }
+
+    // Traffic
+    var obsFlow = val('trafficObs'), slotFactor = val('trafficSlotFactor');
+    var premium = val('trafficPremium'), wdFactor = val('weekdayFactor');
+    var s1 = val('slot1'), s2 = val('slot2'), s3 = val('slot3'), s4 = val('slot4'), s5 = val('slot5');
+    var peakHourlyFlow = (obsFlow * 6) / slotFactor;
+    var storeHourlyFlow = peakHourlyFlow * premium;
+    var slotHours = [2, 2, 3, 2, 3], slotFactors = [s1, s2, s3, s4, s5];
+    var sundayFlow = 0;
+    for (var i = 0; i < 5; i++) sundayFlow += storeHourlyFlow * slotFactors[i] * slotHours[i];
+    var weekdayFlow = sundayFlow * wdFactor;
+    var avgDailyFlow = (weekdayFlow * 5 + sundayFlow * 2) / 7;
+
+    var seasonFactors = {
+        '春季(3-5月)': val('seasonSpring'), '夏季(6-8月)': val('seasonSummer'),
+        '秋季(9-11月)': val('seasonFall'), '冬季(12-2月)': val('seasonWinter'),
+    };
+    var seasonKeys = Object.keys(seasonFactors);
+    var weightedAnnualFlow = 0;
+    seasonKeys.forEach(function(k) { weightedAnnualFlow += avgDailyFlow * seasonFactors[k]; });
+    weightedAnnualFlow /= seasonKeys.length;
+
+    // 正向计算
+    var actualDailyCups = Math.round(weightedAnnualFlow * conversionRate);
+    var actualResult = computeNet(actualDailyCups > 0 ? actualDailyCups : 0);
+    var actualMonthlyNet = actualResult.net;
+    var actualPaybackMonths = actualMonthlyNet > 0 ? sunk / actualMonthlyNet : Infinity;
+
+    // 反算1: 盈亏平衡月毛利
+    function findBreakEvenGP() {
+        for (var gp = 0; gp <= 500000; gp += 100) {
+            var fee = calcProgressiveFee(gp, rentMonthly);
+            if (gp - fee >= fixedMonthly) return gp;
+        }
+        return 0;
+    }
+    var breakEvenGP = findBreakEvenGP();
+    var marginPerCup = avgPrice - materialCost;
+    var beCups = marginPerCup > 0 ? Math.ceil(breakEvenGP / marginPerCup / daysPerMonth) : 0;
+
+    // 反算2: 目标月净利
+    var targetMonthlyProfit = sunk / targetPayback;
+    var targetCups = 0;
+    for (var c = 1; c <= 600; c++) { var r = computeNet(c); if (r.net >= targetMonthlyProfit) { targetCups = c; break; } }
+    if (targetCups === 0) targetCups = 600;
+    var targetResult = computeNet(targetCups);
+
+    // 判断
+    var actualConvPct = conversionRate * 100;
+    var neededConvPct = targetCups / weightedAnnualFlow * 100;
+    var verdict, verdictClass, verdictColor;
+    if (actualConvPct >= neededConvPct * 1.1) { verdict='✅ 可行性较高'; verdictClass='tag green'; verdictColor='var(--accent-green)'; }
+    else if (actualConvPct >= neededConvPct * 0.8) { verdict='⚠️ 接近目标，需努力'; verdictClass='tag yellow'; verdictColor='var(--accent-yellow)'; }
+    else if (actualConvPct >= neededConvPct * 0.5) { verdict='⚠️ 有差距，需提升'; verdictClass='tag yellow'; verdictColor='var(--accent-yellow)'; }
+    else { verdict='❌ 差距大，重新评估'; verdictClass='tag red'; verdictColor='var(--accent-red)'; }
+
+    // Summary Bar
+    $('sActualCups').textContent = actualDailyCups + ' 杯';
+    $('sActualNetProfit').textContent = fmt(Math.round(actualMonthlyNet)) + ' 元';
+    $('sActualPayback').textContent = isFinite(actualPaybackMonths) ? fmt1(actualPaybackMonths) + '月' : '∞';
+    $('sBreakEvenGP').textContent = fmt(breakEvenGP) + ' 元';
+    $('sTargetNetProfit').textContent = fmt(Math.round(targetMonthlyProfit)) + ' 元';
+    $('sVerdict').textContent = verdict.replace(/[✅❌⚠️]/g,'').trim();
+    $('sVerdict').style.color = verdictColor;
+
+    // Overview
+    $('oBreakEven').textContent = fmt(breakEvenGP) + ' 元（月毛利）';
+    $('oTargetCups').textContent = fmt(Math.round(targetMonthlyProfit)) + ' 元（月净利）';
+    $('oMonthlyProfit').textContent = fmt(Math.round(actualMonthlyNet)) + ' 元';
+    $('oPaybackMonths').textContent = isFinite(actualPaybackMonths) ? fmt1(actualPaybackMonths) + ' 个月' : '无法回本';
+
+    var vhtml = '<div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">'
+        + '<div style="flex:1;min-width:200px;background:rgba(33,150,243,0.08);border-radius:8px;padding:12px">'
+        + '<div style="font-size:11px;color:var(--text-light)">▶ 正向计算结果（转化率 ' + (conversionRate*100).toFixed(1) + '%）</div>'
+        + '<div style="margin-top:6px;font-size:13px;line-height:1.8">'
+        + '<div>实际日均杯量：<strong>' + actualDailyCups + ' 杯</strong></div>'
+        + '<div>实际月净利：<strong style="color:' + (actualMonthlyNet>=0?'var(--accent-green)':'var(--accent-red)') + '">' + (actualMonthlyNet>=0?'+':'') + fmt(Math.round(actualMonthlyNet)) + ' 元</strong></div>'
+        + '<div>实际回本周期：<strong>' + (isFinite(actualPaybackMonths) ? fmt1(actualPaybackMonths)+'个月' : '无法回本') + '</strong></div>'
+        + '</div></div>'
+        + '<div style="flex:1;min-width:200px;background:rgba(255,152,0,0.08);border-radius:8px;padding:12px">'
+        + '<div style="font-size:11px;color:var(--text-light)">◀ 反算结果（目标' + targetPayback + '个月回本）</div>'
+        + '<div style="margin-top:6px;font-size:13px;line-height:1.8">'
+        + '<div>盈亏平衡：月毛利需达 <strong style="color:var(--accent-yellow)">' + fmt(breakEvenGP) + ' 元</strong></div>'
+        + '<div>目标回本：月净利需达 <strong style="color:var(--accent-blue)">' + fmt(Math.round(targetMonthlyProfit)) + ' 元</strong></div>'
+        + '<div>相当于日均 <strong>' + targetCups + ' 杯</strong>（需转化率 ' + fmt2(neededConvPct) + '%）</div>'
+        + '</div></div></div>'
+        + '<div style="text-align:center;padding:6px">'
+        + '<span class="' + verdictClass + '" style="font-size:15px;padding:4px 14px">' + verdict + '</span>'
+        + '<div style="margin-top:8px;font-size:12px;color:var(--text-light)">你填入的转化率 <strong>' + (conversionRate*100).toFixed(1) + '%</strong> vs 目标所需 <strong>' + fmt2(neededConvPct) + '%</strong></div></div>'
+        + '<hr class="section-divider">'
+        + '<div style="font-size:12px;color:var(--text-light);line-height:1.8">'
+        + '<div>• 综合单杯毛利：<strong>' + fmt2(avgPrice - materialCost) + ' 元</strong>（毛利率 ' + ((avgPrice-materialCost)/avgPrice*100).toFixed(1) + '%）</div>'
+        + '<div>• 线下单杯毛利：<strong>' + fmt2(offlinePrice - offlineMaterial) + ' 元</strong>（毛利率 ' + ((offlinePrice-offlineMaterial)/offlinePrice*100).toFixed(1) + '%）</div>'
+        + '<div>• 线上单杯毛利：<strong>' + fmt2(onlinePrice - onlineMaterial) + ' 元</strong>（毛利率 ' + ((onlinePrice-onlineMaterial)/onlinePrice*100).toFixed(1) + '%）</div>'
+        + '<div>• 租金占固定成本：<strong>' + (rentMonthly/fixedMonthly*100).toFixed(0) + '%</strong>（' + fmt(Math.round(rentMonthly)) + '元 / ' + fmt(Math.round(fixedMonthly)) + '元）</div>'
+        + '<div>• 初始投资净额：<strong>' + fmt(sunk) + ' 元</strong> | 月固定成本：<strong>' + fmt(Math.round(fixedMonthly)) + ' 元</strong></div></div>';
+    $('overviewVerdict').innerHTML = vhtml;
+
+    // Detail table
+    var cupList = [];
+    for (var ci = 1; ci <= 20; ci++) cupList.push(ci * 25);
+    cupList.push(actualDailyCups); cupList.push(targetCups);
+    cupList.sort(function(a,b){return a-b;});
+    var thtml = ''; var seen = {};
+    for (var ci = 0; ci < cupList.length; ci++) {
+        var c = cupList[ci];
+        if (seen[c]) continue; seen[c] = true;
+        var r = computeNet(c);
+        var pb = '无法回本', rc = '';
+        if (r.net > 0) pb = fmt1(sunk / r.net) + '月';
+        if (c === actualDailyCups) rc = 'highlight-row';
+        else if (Math.abs(c - targetCups) <= 2 && rc !== 'highlight-row') rc = 'highlight-row';
+        var nc = r.net > 0 ? 'positive' : (r.net < 0 ? 'negative' : 'neutral');
+        var marker = c === actualDailyCups ? ' ◀实际' : (Math.abs(c - targetCups) <= 2 ? ' ◀目标' : '');
+        thtml += '<tr class="' + rc + '"><td>' + c + '杯' + marker + '</td><td>' + fmt(Math.round(r.revenue)) + '</td><td>' + fmt(Math.round(r.matCost)) + '</td><td>' + fmt(Math.round(r.grossProfit)) + '</td><td>' + fmt(Math.round(r.fee)) + ' (' + (r.feeRate*100).toFixed(0) + '%)</td><td>' + fmt(Math.round(fixedMonthly)) + '</td><td class="' + nc + '">' + (r.net >= 0 ? '+' : '') + fmt(Math.round(r.net)) + '</td><td>' + pb + '</td></tr>';
+    }
+    $('detailTableBody').innerHTML = thtml;
+
+    // Traffic tab
+    var labels = ['10:00-12:00','12:00-14:00','14:00-17:00','17:00-19:00','19:00-22:00'];
+    var totalSun = 0;
+    var trafficHTML = '<div style="font-size:12px;line-height:2"><table><tr><td>观测: 每10分钟' + obsFlow + '人 (' + slotFactor.toFixed(1) + '×基准)</td><td>高峰: <strong>' + Math.round(peakHourlyFlow) + '</strong> 人/时</td></tr><tr><td>店前溢价 ' + premium.toFixed(1) + '×</td><td>店前高峰: <strong>' + Math.round(storeHourlyFlow) + '</strong> 人/时</td></tr></table><hr class="section-divider"><div style="font-weight:600;margin-bottom:6px;font-size:12px">日均客流:</div><table><thead><tr><th>时段</th><th>时长</th><th>系数</th><th>客流</th></tr></thead>';
+    for (var i = 0; i < 5; i++) { var f = storeHourlyFlow * slotFactors[i] * slotHours[i]; totalSun += f;
+        trafficHTML += '<tr><td>' + labels[i] + '</td><td>' + slotHours[i] + 'h</td><td>' + slotFactors[i].toFixed(1) + '</td><td>' + Math.round(f).toLocaleString() + '人</td></tr>';
+    }
+    trafficHTML += '<tr style="font-weight:600;border-top:2px solid var(--border)"><td>周日合计</td><td></td><td></td><td>' + Math.round(totalSun).toLocaleString() + '人</td></tr><tr><td>工作日 (×' + wdFactor.toFixed(1) + ')</td><td></td><td></td><td>' + Math.round(weekdayFlow).toLocaleString() + '人</td></tr><tr style="font-weight:600"><td>月均日客流</td><td></td><td></td><td>' + Math.round(avgDailyFlow).toLocaleString() + '人</td></tr></table><hr class="section-divider"><div style="font-weight:600;margin-bottom:6px;font-size:12px">当前输入转化率 <strong style="color:var(--accent-blue)">' + (conversionRate*100).toFixed(1) + '%</strong> → 日均 <strong style="color:var(--accent-blue)">' + actualDailyCups + '杯</strong></div><div style="font-weight:600;margin-bottom:6px;font-size:12px">不同转化率对比:</div><table><thead><tr><th>转化率</th><th>冬季淡季</th><th>年均</th><th>夏季旺季</th><th>目标达标?</th></tr></thead>';
+    var rates = [0.5,1.0,1.5,2.0,2.5,3.0,4.0,5.0,6.0,7.0,8.0];
+    for (var ri = 0; ri < rates.length; ri++) {
+        var cr = rates[ri];
+        var p = cr/100, w = avgDailyFlow * seasonFactors['冬季(12-2月)'] * p;
+        var a = weightedAnnualFlow * p, s = avgDailyFlow * seasonFactors['夏季(6-8月)'] * p;
+        var ok = a >= targetCups ? '✅' : '❌';
+        var isCur = Math.abs(cr - conversionRate*100) < 0.01;
+        trafficHTML += '<tr' + (isCur?' style="background:rgba(33,150,243,0.1);font-weight:600"':'') + '><td>' + cr.toFixed(1) + '%' + (isCur?' ◀当前':'') + '</td><td>' + Math.round(w) + '杯</td><td>' + Math.round(a) + '杯</td><td>' + Math.round(s) + '杯</td><td class="' + (ok==='✅'?'positive':'negative') + '">' + ok + '</td></tr>';
+    }
+    trafficHTML += '</table><hr class="section-divider"><div style="font-size:11px;color:var(--text-light)">行业参考: 一般商场咖啡店 0.5%~3% | 核心商圈 2%~5% | 瑞幸/库迪 1.5%~4%</div></div>';
+    $('trafficContent').innerHTML = trafficHTML;
+
+    // Sensitivity
+    var baseCups = actualDailyCups > 0 ? actualDailyCups : 1;
+    var baseForSens = computeNet(baseCups);
+    var baseNet = baseForSens.net;
+    function sensTest(key, baseVal, direction) {
+        var m = direction === 'minus' ? 0.9 : 1.1;
+        var newAvgPrice = avgPrice, newMatCost = materialCost;
+        if (key === 'offlinePrice') { newAvgPrice = (baseVal * m) * offlineRatio + onlinePrice * onlineRatio; }
+        else if (key === 'onlinePrice') { newAvgPrice = offlinePrice * offlineRatio + (baseVal * m) * onlineRatio; }
+        else if (key === 'offlineMaterial') { newMatCost = (baseVal * m) * offlineRatio + onlineMaterial * onlineRatio; }
+        else if (key === 'onlineMaterial') { newMatCost = offlineMaterial * offlineRatio + (baseVal * m) * onlineRatio; }
+        else if (key === 'onlineRatio') { var nr = (baseVal * m) / 100; newAvgPrice = offlinePrice * (1 - nr) + onlinePrice * nr; newMatCost = offlineMaterial * (1 - nr) + onlineMaterial * nr; }
+        if (key === 'cups') { return computeNet(Math.round(baseVal * m)).net; }
+        else if (key === 'rent') { var nr = baseVal * m; var nf = fixedMonthly - rentMonthly + nr; var mc = baseCups * daysPerMonth; var rev = mc * newAvgPrice; var mat = mc * newMatCost; var sf = calcServiceFee(rev, mat, nr); return rev - mat - sf.fee - nf; }
+        else if (key === 'staffTotal') { var ns = baseVal * m; var nf = fixedMonthly - staffTotal + ns; var mc = baseCups * daysPerMonth; var rev = mc * newAvgPrice; var mat = mc * newMatCost; var sf = calcServiceFee(rev, mat, rentMonthly); return rev - mat - sf.fee - nf; }
+        else if (key === 'conversionRate') { var newCups = Math.round(weightedAnnualFlow * baseVal * m / 100); return computeNet(newCups > 0 ? newCups : 0).net; }
+        else { var mc = baseCups * daysPerMonth; var rev = mc * newAvgPrice; var mat = mc * newMatCost; var sf = calcServiceFee(rev, mat, rentMonthly); return rev - mat - sf.fee - fixedMonthly; }
+        return 0;
+    }
+    var sensHTML = '<div style="font-size:12px;color:var(--text-light);margin-bottom:8px">基准: 转化率' + (conversionRate*100).toFixed(1) + '% → 日均' + baseCups + '杯，月净利 <strong>' + fmt(Math.round(baseNet)) + '</strong> 元</div><div style="font-size:11px;color:var(--text-light);margin-bottom:6px">线下 ' + Math.round(offlineRatio*100) + '% / 线上 ' + Math.round(onlineRatio*100) + '% | 综合客单价 ' + fmt2(avgPrice) + '元 / 综合毛利率 ' + fmt2((avgPrice-materialCost)/avgPrice*100) + '%</div><table><thead><tr><th>变量</th><th>-10%</th><th>基准</th><th>+10%</th><th>影响幅度</th></tr></thead>';
+    var sensVars = [['线下客单价','offlinePrice',offlinePrice],['线上客单价','onlinePrice',onlinePrice],['线上占比','onlineRatio',onlineRatio*100],['转化率','conversionRate',conversionRate*100],['线下原料成本','offlineMaterial',offlineMaterial],['线上原料成本','onlineMaterial',onlineMaterial],['月租金','rent',rentMonthly],['人工总成本','staffTotal',staffTotal]];
+    for (var si = 0; si < sensVars.length; si++) {
+        var v = sensVars[si];
+        var mn = sensTest(v[1], v[2], 'minus'), mp = sensTest(v[1], v[2], 'plus');
+        sensHTML += '<tr><td>' + v[0] + '</td><td class="' + (mn>=0?'positive':'negative') + '">' + (mn>=0?'+':'') + fmt(Math.round(mn)) + '</td><td>' + (baseNet>=0?'+':'') + fmt(Math.round(baseNet)) + '</td><td class="' + (mp>=0?'positive':'negative') + '">' + (mp>=0?'+':'') + fmt(Math.round(mp)) + '</td><td><strong>' + fmt(Math.round(Math.abs(mp-mn))) + '</strong>元</td></tr>';
+    }
+    sensHTML += '</table><hr class="section-divider"><div style="font-size:11px;color:var(--text-light)">💡 线下客单价和转化率对盈利影响最大，线上占比也值得关注。</div>';
+    $('sensitivityContent').innerHTML = sensHTML;
+
+    // Season
+    var seasHTML = '<div style="font-size:12px;margin-bottom:8px">基准日均客流: ' + Math.round(avgDailyFlow).toLocaleString() + '人 | 当前转化率: ' + (conversionRate*100).toFixed(1) + '%</div><table><thead><tr><th>季节</th><th>系数</th><th>日均客流</th><th>日均杯量</th><th>月净利估算</th></tr></thead>';
+    seasonKeys.forEach(function(k) {
+        var f = seasonFactors[k], df = avgDailyFlow * f, cups = df * conversionRate, r = computeNet(cups);
+        seasHTML += '<tr><td>' + k + '</td><td>' + f.toFixed(2) + '</td><td>' + Math.round(df).toLocaleString() + '人</td><td>' + fmt1(cups) + '杯</td><td class="' + (r.net>=0?'positive':'negative') + '">' + (r.net>=0?'+':'') + fmt(Math.round(r.net)) + '元</td></tr>';
+    });
+    seasHTML += '</table><hr class="section-divider"><div style="font-size:11px;color:var(--text-light)">⚠️ 内蒙古冬季(12-2月)客流下降约35%，是最大挑战。☀️ 夏季(6-8月)是赚钱窗口期。</div>';
+    $('seasonContent').innerHTML = seasHTML;
+    $('feeOffsetLabel').textContent = fmt(val('feeBaseDeduct'));
+}
+
+// Tabs
+document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+        document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+        this.classList.add('active');
+        $(this.dataset.tab).classList.add('active');
+    });
+});
+
+// Bind
+document.querySelectorAll('input').forEach(function(el) { el.addEventListener('input', calculate); });
+
+// Init
+calculate();
+</script>
+</body>
+</html>
